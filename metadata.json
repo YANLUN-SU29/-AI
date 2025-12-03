@@ -1,0 +1,5 @@
+{
+  "name": "賽道遙測與策略 AI",
+  "description": "一款 AI 驅動的賽道分析工具。上傳賽道圖即可獲得詳細的遙測預測、煞車點分析、彎道詳解以及策略性的賽車路線建議。使用 Gemini 2.5 多模態模型技術。",
+  "requestFramePermissions": []
+}

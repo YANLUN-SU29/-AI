@@ -1,0 +1,473 @@
+
+import React, { useState, useRef, useEffect } from 'react';
+import { Header } from './components/Header';
+import { CornerCard } from './components/CornerCard';
+import { StrategyPanel } from './components/StrategyPanel';
+import { WeatherSelector } from './components/WeatherSelector';
+import { VehicleSelector } from './components/VehicleSelector';
+import { TrackMap } from './components/TrackMap';
+import { TelemetryPanel } from './components/TelemetryPanel';
+import { TrackInfoInput } from './components/TrackInfoInput';
+import { analyzeTrackImage } from './services/geminiService';
+import { AnalysisStatus, TrackAnalysis, UploadState, WeatherCondition, MapMarker, VehicleType, StartConfig } from './types';
+
+function App() {
+  const [uploadState, setUploadState] = useState<UploadState>({ file: null, previewUrl: null });
+  const [markers, setMarkers] = useState<MapMarker[]>([]);
+  const [startConfig, setStartConfig] = useState<StartConfig | null>(null);
+  const [status, setStatus] = useState<AnalysisStatus>(AnalysisStatus.IDLE);
+  const [weather, setWeather] = useState<WeatherCondition>('Dry');
+  const [vehicle, setVehicle] = useState<VehicleType>('F1');
+  const [trackName, setTrackName] = useState<string>('');
+  const [trackLength, setTrackLength] = useState<string>('');
+  const [analysis, setAnalysis] = useState<TrackAnalysis | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loadingStep, setLoadingStep] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const loadingSteps = [
+    { id: 0, title: "掃描賽道幾何", subtitle: "Scanning Track Geometry" },
+    { id: 1, title: "物理模型運算", subtitle: "Calculating Physics & Grip" },
+    { id: 2, title: "最佳路線模擬", subtitle: "Simulating Racing Lines" },
+    { id: 3, title: "生成策略報告", subtitle: "Compiling Telemetry Data" }
+  ];
+
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    if (status === AnalysisStatus.ANALYZING) {
+      setLoadingStep(0);
+      interval = setInterval(() => {
+        setLoadingStep((prev) => (prev < loadingSteps.length - 1 ? prev + 1 : prev));
+      }, 2000);
+    }
+    return () => clearInterval(interval);
+  }, [status]);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        setError('請上傳有效的影像檔案 (JPG, PNG)。');
+        return;
+      }
+      const previewUrl = URL.createObjectURL(file);
+      setUploadState({ file, previewUrl });
+      setMarkers([]); // Reset markers
+      setStartConfig(null); // Reset start line
+      setStatus(AnalysisStatus.IDLE);
+      setAnalysis(null);
+      setError(null);
+    }
+  };
+
+  const handleClearImage = () => {
+    setUploadState({ file: null, previewUrl: null });
+    setMarkers([]);
+    setStartConfig(null);
+    setAnalysis(null);
+    setStatus(AnalysisStatus.IDLE);
+    setTrackName('');
+    setTrackLength('');
+  };
+
+  /**
+   * Generates a new Base64 image string with markers and start line drawn on top.
+   */
+  const generateMarkedImage = async (file: File, markers: MapMarker[], startConfig: StartConfig | null): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        // Use the natural size of the image for high quality
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject('Could not get canvas context');
+          return;
+        }
+
+        // 1. Draw original image
+        ctx.drawImage(img, 0, 0);
+
+        const scaleBase = Math.max(img.width, img.height);
+        
+        // 2. Draw Start Line (if exists)
+        if (startConfig) {
+          const sx = (startConfig.x / 100) * img.width;
+          const sy = (startConfig.y / 100) * img.height;
+          const arrowSize = scaleBase * 0.04;
+
+          ctx.save();
+          ctx.translate(sx, sy);
+          ctx.rotate((startConfig.angle * Math.PI) / 180);
+
+          // Draw Arrow shape
+          ctx.beginPath();
+          ctx.moveTo(0, -arrowSize); // Tip
+          ctx.lineTo(arrowSize * 0.6, arrowSize * 0.6); // Bottom Right
+          ctx.lineTo(0, arrowSize * 0.2); // Inner Notch
+          ctx.lineTo(-arrowSize * 0.6, arrowSize * 0.6); // Bottom Left
+          ctx.closePath();
+          
+          ctx.fillStyle = '#00D2BE'; // F1 Teal
+          ctx.fill();
+          ctx.lineWidth = arrowSize * 0.1;
+          ctx.strokeStyle = 'white';
+          ctx.stroke();
+          
+          ctx.restore();
+        }
+
+        // 3. Draw markers
+        const radius = scaleBase * 0.025; // 2.5% of max dimension
+        const fontSize = scaleBase * 0.02;
+        const lineWidth = radius * 0.15;
+
+        markers.forEach((marker, index) => {
+          const x = (marker.x / 100) * img.width;
+          const y = (marker.y / 100) * img.height;
+          const number = index + 1;
+
+          // Circle
+          ctx.beginPath();
+          ctx.arc(x, y, radius, 0, 2 * Math.PI);
+          ctx.fillStyle = '#FF1801'; // F1 Red
+          ctx.fill();
+          ctx.lineWidth = lineWidth;
+          ctx.strokeStyle = 'white';
+          ctx.stroke();
+
+          // Number
+          ctx.fillStyle = 'white';
+          ctx.font = `bold ${fontSize}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(number.toString(), x, y);
+        });
+
+        // Return as JPEG base64
+        resolve(canvas.toDataURL('image/jpeg', 0.95));
+      };
+      img.onerror = reject;
+    });
+  };
+
+  const handleAnalyze = async () => {
+    if (!uploadState.file) return;
+
+    try {
+      setStatus(AnalysisStatus.ANALYZING);
+      
+      let imageInput: File | string = uploadState.file;
+      const hasOverlay = markers.length > 0 || startConfig !== null;
+
+      // If user added markers or start line, composite them onto the image
+      if (hasOverlay) {
+        imageInput = await generateMarkedImage(uploadState.file, markers, startConfig);
+      }
+
+      const result = await analyzeTrackImage(
+        imageInput, 
+        weather, 
+        vehicle, 
+        markers, 
+        trackName,
+        trackLength
+      );
+      setAnalysis(result);
+      setStatus(AnalysisStatus.SUCCESS);
+    } catch (err) {
+      console.error(err);
+      setError('分析失敗。AI 無法處理此影像，請確保賽道圖清晰。');
+      setStatus(AnalysisStatus.ERROR);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+       const previewUrl = URL.createObjectURL(file);
+       setUploadState({ file, previewUrl });
+       setMarkers([]);
+       setStartConfig(null);
+       setStatus(AnalysisStatus.IDLE);
+       setAnalysis(null);
+       setError(null);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col font-sans">
+      <Header />
+
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        {/* Intro Section */}
+        {status === AnalysisStatus.IDLE && !uploadState.previewUrl && (
+          <div className="text-center py-12">
+             <h2 className="text-3xl font-display font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-500">
+               賽道遙測與策略 AI
+             </h2>
+             <p className="text-gray-400 max-w-2xl mx-auto mb-8">
+               上傳賽道圖（官方佈局或手繪），透過電腦視覺即時分析煞車點、檔位選擇和賽車路線建議。
+               支援 F1、Formula E、GT3、卡丁車等多種車型。
+             </p>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          
+          {/* Left Column: Upload & Visualization */}
+          <div className="lg:col-span-5 flex flex-col gap-6">
+            
+            {uploadState.previewUrl ? (
+              <TrackMap 
+                imageUrl={uploadState.previewUrl} 
+                markers={markers}
+                setMarkers={setMarkers}
+                startConfig={startConfig}
+                setStartConfig={setStartConfig}
+                onClearImage={handleClearImage}
+                readOnly={false}
+              />
+            ) : (
+              <div 
+                className="relative border-2 border-dashed border-white/20 hover:border-white/40 bg-white/5 rounded-xl overflow-hidden transition-all duration-300 min-h-[300px] flex flex-col items-center justify-center cursor-pointer"
+                onDragOver={handleDragOver}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <div className="text-center p-8 pointer-events-none">
+                  <svg className="mx-auto h-12 w-12 text-gray-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <p className="text-sm text-gray-300 font-medium">將賽道圖拖放到此處</p>
+                  <p className="text-xs text-gray-500 mt-1 mb-4">或 點擊上傳</p>
+                </div>
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  className="hidden" 
+                  accept="image/*"
+                  onChange={handleFileSelect} 
+                />
+              </div>
+            )}
+
+            {/* Controls */}
+            {uploadState.file && (
+              <div className="bg-f1-carbon/50 border border-white/5 rounded-xl p-4 animate-fade-in space-y-4">
+                 
+                 <TrackInfoInput 
+                    trackName={trackName}
+                    setTrackName={setTrackName}
+                    trackLength={trackLength}
+                    setTrackLength={setTrackLength}
+                    disabled={status === AnalysisStatus.ANALYZING}
+                 />
+
+                 <VehicleSelector 
+                   vehicle={vehicle}
+                   setVehicle={setVehicle}
+                   disabled={status === AnalysisStatus.ANALYZING}
+                 />
+
+                 <WeatherSelector 
+                   weather={weather} 
+                   setWeather={setWeather} 
+                   disabled={status === AnalysisStatus.ANALYZING} 
+                 />
+
+                {status !== AnalysisStatus.ANALYZING && status !== AnalysisStatus.SUCCESS && (
+                  <button
+                    onClick={handleAnalyze}
+                    className="w-full bg-f1-red hover:bg-red-700 text-white font-display font-bold text-lg py-4 rounded-lg shadow-lg shadow-red-900/20 transition-all transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    開始分析賽道
+                  </button>
+                )}
+
+                {status === AnalysisStatus.SUCCESS && (
+                   <button
+                   onClick={handleAnalyze}
+                   className="w-full bg-f1-carbon border border-white/20 hover:bg-white/5 text-white font-display font-bold text-sm py-3 rounded-lg transition-all flex items-center justify-center gap-2"
+                 >
+                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                   </svg>
+                   重新分析
+                 </button>
+                )}
+              </div>
+            )}
+
+            {status === AnalysisStatus.ANALYZING && (
+              <div className="bg-f1-carbon/90 border border-f1-teal/30 rounded-xl p-6 md:p-8 flex flex-col md:flex-row items-center justify-center gap-8 md:gap-12 relative overflow-hidden min-h-[400px] backdrop-blur-md">
+                {/* Background Grid Animation */}
+                <div className="absolute inset-0 opacity-10 pointer-events-none bg-[linear-gradient(rgba(0,210,190,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(0,210,190,0.1)_1px,transparent_1px)] bg-[size:20px_20px]"></div>
+                
+                {/* Left: Visual Radar */}
+                <div className="relative w-32 h-32 md:w-40 md:h-40 flex-shrink-0 flex items-center justify-center">
+                  {/* Outer Rings */}
+                  <div className="absolute inset-0 border border-f1-teal/20 rounded-full"></div>
+                  <div className="absolute inset-4 border border-f1-teal/10 rounded-full border-dashed animate-[spin_10s_linear_infinite]"></div>
+                  
+                  {/* Rotating Radar */}
+                  <div className="absolute inset-0 rounded-full border-t-2 border-r-2 border-f1-teal/50 animate-[spin_2s_linear_infinite] shadow-[0_0_15px_rgba(0,210,190,0.3)]"></div>
+                  
+                  {/* Inner Pulse */}
+                  <div className="absolute inset-12 bg-f1-teal/10 rounded-full animate-ping"></div>
+                  
+                  {/* Center Icon */}
+                  <div className="relative z-10 w-16 h-16 bg-black rounded-full border border-f1-teal/50 flex items-center justify-center shadow-[0_0_20px_rgba(0,210,190,0.2)]">
+                     <svg className="w-8 h-8 text-f1-teal" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                     </svg>
+                  </div>
+                </div>
+
+                {/* Right: Progress Timeline */}
+                <div className="z-10 flex flex-col gap-5 max-w-sm w-full">
+                  <h3 className="text-lg font-display font-bold text-white tracking-widest uppercase mb-1 border-b border-white/10 pb-2">
+                    System Initialization
+                  </h3>
+                  
+                  <div className="space-y-3">
+                    {loadingSteps.map((step, index) => {
+                      const isActive = index === loadingStep;
+                      const isCompleted = index < loadingStep;
+                      
+                      return (
+                        <div key={step.id} className={`flex items-center gap-3 transition-all duration-500 ${isActive ? 'translate-x-2' : 'opacity-40'}`}>
+                          {/* Status Indicator */}
+                          <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 transition-colors duration-300 ${
+                            isActive ? 'bg-f1-teal shadow-[0_0_10px_#00D2BE] animate-pulse' : 
+                            isCompleted ? 'bg-f1-teal' : 'bg-gray-700'
+                          }`}></div>
+                          
+                          {/* Text */}
+                          <div className="flex flex-col">
+                            <span className={`text-sm font-bold font-display uppercase tracking-wider transition-colors ${
+                              isActive ? 'text-white' : isCompleted ? 'text-gray-300' : 'text-gray-500'
+                            }`}>
+                              {step.title}
+                            </span>
+                            <span className="text-[10px] font-mono text-gray-400">
+                              {isActive ? 'Processing...' : isCompleted ? 'Completed' : step.subtitle}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Telemetry Footer */}
+                  <div className="mt-2 pt-3 border-t border-white/10 flex justify-between text-[10px] font-mono text-f1-teal/60">
+                     <span>TARGET: {vehicle}</span>
+                     <span className="animate-pulse">_CONNECTING_TO_GEMINI_Core</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {status === AnalysisStatus.ERROR && error && (
+              <div className="bg-red-900/20 border border-f1-red/50 text-red-200 p-4 rounded-lg text-sm flex items-center gap-3">
+                 <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                 </svg>
+                 {error}
+              </div>
+            )}
+          </div>
+
+          {/* Right Column: Analysis Results */}
+          <div className="lg:col-span-7">
+            {analysis ? (
+              <div className="space-y-6 animate-fade-in">
+                {/* Header Info */}
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-white/10 pb-6 gap-4">
+                  <div>
+                    <h2 className="text-3xl font-display font-bold text-white uppercase">{analysis.circuitName}</h2>
+                    <p className="text-f1-teal text-sm font-mono flex items-center gap-2">
+                       <span className="w-2 h-2 rounded-full bg-f1-teal animate-pulse"></span>
+                       {analysis.locationGuess || "未知地點"}
+                    </p>
+                  </div>
+                  <div className="flex gap-4">
+                    <div className="text-right">
+                      <span className="block text-[10px] text-gray-500 uppercase tracking-wider">彎道數</span>
+                      <span className="font-display text-2xl font-bold">{analysis.totalCorners}</span>
+                    </div>
+                    <div className="w-[1px] bg-white/10 h-10"></div>
+                     <div className="text-right">
+                      <span className="block text-[10px] text-gray-500 uppercase tracking-wider">車輛</span>
+                      <span className="font-display text-2xl font-bold text-gray-300">{vehicle}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Telemetry Panel (Sector Times) */}
+                <TelemetryPanel stats={analysis.sectorStats} />
+
+                {/* Strategy Panel */}
+                <StrategyPanel 
+                  strategy={analysis.strategy} 
+                  overallCharacter={analysis.overallCharacter} 
+                  weather={weather}
+                  vehicle={analysis.vehicle}
+                />
+
+                {/* Corners Grid */}
+                <div>
+                   <h3 className="text-xl font-display font-bold text-white mb-4 border-l-4 border-f1-red pl-3">
+                     彎道詳細分析 (Corner Analysis)
+                   </h3>
+                   {markers.length > 0 && (
+                     <p className="text-sm text-gray-400 mb-4 bg-white/5 p-2 rounded">
+                       * 顯示順序對應圖上標記 (1 - {markers.length})
+                     </p>
+                   )}
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     {analysis.corners.map((corner) => (
+                       <CornerCard key={corner.number} corner={corner} />
+                     ))}
+                   </div>
+                </div>
+
+              </div>
+            ) : (
+              // Placeholder State
+              <div className="h-full flex flex-col items-center justify-center text-gray-600 border-2 border-dashed border-white/5 rounded-xl min-h-[400px]">
+                {status === AnalysisStatus.IDLE && (
+                   <>
+                    <svg className="w-16 h-16 mb-4 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <p className="uppercase tracking-widest text-xs font-bold opacity-50">
+                      {markers.length > 0 || startConfig ? "已準備好標記，點擊「開始分析」..." : "等待遙測數據..."}
+                    </p>
+                   </>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+export default App;

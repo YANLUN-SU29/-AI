@@ -1,11 +1,38 @@
-<div align="center">
+# 賽道遙測與策略 AI (Track Telemetry & Strategy AI)
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+這是一個基於 React 和 Google Gemini 2.5 多模態 AI 的 Web 應用程式，專門用於分析各類賽車場的賽道圖與遙測數據。
 
-  <h1>Built with AI Studio</h2>
+## 功能
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+1.  **賽道圖上傳**：支援拖放或點擊上傳賽道圖片（官方佈局或手繪圖皆可）。
+2.  **AI 影像辨識**：使用 Gemini 2.5 Flash 模型進行電腦視覺分析。
+3.  **多車型支援**：針對 F1、Formula E、GT3、卡丁車與一般跑車提供客製化的物理分析。
+4.  **詳細遙測報告**：
+    *   **煞車點分析**：識別重煞、中煞、輕煞區域。
+    *   **彎道建議**：提供每個彎道的過彎技巧與路線建議。
+    *   **單圈時間預估**：透過賽道長度與車輛物理特性，精準估算單圈與區段時間 (Sector Times)。
+5.  **賽事策略**：
+    *   輪胎磨損預估。
+    *   超車熱點分析。
+    *   車輛調校重點 (如下壓力設定)。
+6.  **繁體中文介面**：全中文化的分析報告與操作介面。
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+## 技術棧
 
-</div>
+*   **Frontend**: React 19, Tailwind CSS
+*   **AI**: Google Gemini API (`@google/genai` SDK)
+*   **字型**: Google Fonts (Orbitron, Inter)
+
+## 如何使用
+
+1.  開啟應用程式。
+2.  上傳一張賽道圖（例如：鈴鹿、摩納哥，或您的自製賽道）。
+3.  輸入賽道名稱與長度（選填，但建議輸入以提升時間預估準確度）。
+4.  選擇車型（如 F1, GT3, 卡丁車）。
+5.  點擊「開始分析」。
+6.  等待 AI 產生詳細的賽道工程報告。
+
+## 注意事項
+
+*   本專案使用 Gemini API，需要有效的 API Key 環境變數支援。
+*   分析結果僅供參考，實際賽車請以安全為優先。
