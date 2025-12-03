@@ -202,9 +202,20 @@ function App() {
       );
       setAnalysis(result);
       setStatus(AnalysisStatus.SUCCESS);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError('分析失敗。AI 無法處理此檔案，請確保影像或影片清晰且格式正確。');
+      let errorMessage = '分析失敗。AI 無法處理此檔案，請確保影像或影片清晰且格式正確。';
+      
+      // Basic Error Parsing
+      if (err.message && err.message.includes('400')) {
+        errorMessage = '影像格式錯誤或無法辨識，請嘗試其他圖片。';
+      } else if (err.message && err.message.includes('503')) {
+        errorMessage = 'AI 服務暫時繁忙，請稍後再試。';
+      } else if (err.message && err.message.includes('safety')) {
+        errorMessage = '影像內容被系統攔截，請確認內容符合規範。';
+      }
+
+      setError(errorMessage);
       setStatus(AnalysisStatus.ERROR);
     }
   };
@@ -311,26 +322,43 @@ function App() {
             {uploadState.previewUrl ? (
               <div className="flex flex-col gap-3">
                 {uploadState.mediaType === 'video' ? (
-                  <div className="relative border-2 border-dashed border-f1-teal/50 bg-black rounded-xl overflow-hidden min-h-[300px] flex flex-col items-center justify-center p-2">
+                  <div className="relative border-2 border-dashed border-f1-teal/50 bg-black rounded-xl overflow-hidden min-h-[300px] flex flex-col items-center justify-center p-2 group">
                     <video 
                       src={uploadState.previewUrl} 
                       controls 
                       className="w-full h-full object-contain max-h-[500px] rounded-lg"
                     />
-                    <div className="absolute top-4 left-4 bg-f1-red/90 text-white text-xs font-bold px-3 py-1 rounded-full animate-pulse shadow-lg">
-                      VIDEO MODE
-                    </div>
+                    
+                    {/* Clear Button */}
                     <button 
                       onClick={handleClearImage}
-                      className="absolute top-4 right-4 bg-black/50 hover:bg-black/80 text-white rounded-full p-2 transition-colors"
+                      className="absolute top-4 right-4 bg-black/50 hover:bg-f1-red text-white rounded-full p-2 transition-colors z-20"
                     >
                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     </button>
-                    <p className="text-[10px] text-gray-500 mt-2">
-                      * 影片分析模式下不支援手動標記與起跑線設定
-                    </p>
+
+                    {/* VIDEO MODE Banner */}
+                    <div className="absolute top-4 left-4 flex flex-col gap-1 z-20 pointer-events-none">
+                        <div className="bg-f1-red text-white text-xs font-bold px-3 py-1 rounded-full shadow-[0_0_10px_rgba(255,24,1,0.5)] flex items-center gap-2">
+                            <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
+                            VIDEO ANALYSIS ACTIVE
+                        </div>
+                    </div>
+
+                    {/* Feature Disabled Notification (Bottom Overlay) */}
+                    <div className="absolute bottom-4 left-4 right-4 bg-black/80 backdrop-blur-md border border-white/10 p-3 rounded-lg flex items-start gap-3 z-20">
+                        <svg className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div>
+                            <p className="text-xs text-yellow-500 font-bold uppercase mb-0.5">限制功能 (Limited Features)</p>
+                            <p className="text-[10px] text-gray-400">
+                                影片模式下不支援 <span className="text-white">手動標記</span> 與 <span className="text-white">起跑線設定</span>。AI 將自動識別畫面中的關鍵彎道。
+                            </p>
+                        </div>
+                    </div>
                   </div>
                 ) : (
                   <TrackMap 
@@ -388,44 +416,49 @@ function App() {
                  
                  {/* Video Analysis Mode Selector */}
                  {uploadState.mediaType === 'video' && (
-                   <div className="flex flex-col gap-2 mb-2 w-full">
-                     <label className="text-xs text-gray-400 uppercase tracking-wider font-semibold">影片分析模式 (Video Analysis Mode)</label>
+                   <div className="flex flex-col gap-2 mb-2 w-full animate-fade-in">
+                     <div className="flex items-center justify-between">
+                        <label className="text-xs text-f1-teal uppercase tracking-wider font-semibold flex items-center gap-2">
+                           <span className="w-1.5 h-1.5 bg-f1-teal rounded-full"></span>
+                           影片分析範圍 (Video Analysis Scope)
+                        </label>
+                     </div>
                      <div className="grid grid-cols-3 gap-2">
                        <button
                          onClick={() => setVideoMode('FullLap')}
                          disabled={status === AnalysisStatus.ANALYZING}
-                         className={`py-2 px-2 rounded-lg text-xs font-bold transition-all border ${
+                         className={`py-3 px-2 rounded-lg text-xs font-bold transition-all border flex flex-col items-center gap-1 ${
                            videoMode === 'FullLap' 
-                             ? 'bg-f1-teal text-black border-f1-teal shadow-[0_0_10px_rgba(0,210,190,0.3)]' 
-                             : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'
+                             ? 'bg-f1-teal text-black border-f1-teal shadow-[0_0_15px_rgba(0,210,190,0.2)]' 
+                             : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'
                          }`}
                        >
                          完整單圈
-                         <span className="block text-[8px] opacity-70">Full Lap</span>
+                         <span className="text-[9px] opacity-70 font-mono">FULL LAP</span>
                        </button>
                        <button
                          onClick={() => setVideoMode('KeyCorners')}
                          disabled={status === AnalysisStatus.ANALYZING}
-                         className={`py-2 px-2 rounded-lg text-xs font-bold transition-all border ${
+                         className={`py-3 px-2 rounded-lg text-xs font-bold transition-all border flex flex-col items-center gap-1 ${
                            videoMode === 'KeyCorners' 
-                             ? 'bg-f1-teal text-black border-f1-teal shadow-[0_0_10px_rgba(0,210,190,0.3)]' 
-                             : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'
+                             ? 'bg-f1-teal text-black border-f1-teal shadow-[0_0_15px_rgba(0,210,190,0.2)]' 
+                             : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'
                          }`}
                        >
                          關鍵彎道
-                         <span className="block text-[8px] opacity-70">Key Corners</span>
+                         <span className="text-[9px] opacity-70 font-mono">KEY CORNERS</span>
                        </button>
                        <button
                          onClick={() => setVideoMode('SpecificSection')}
                          disabled={status === AnalysisStatus.ANALYZING}
-                         className={`py-2 px-2 rounded-lg text-xs font-bold transition-all border ${
+                         className={`py-3 px-2 rounded-lg text-xs font-bold transition-all border flex flex-col items-center gap-1 ${
                            videoMode === 'SpecificSection' 
-                             ? 'bg-f1-teal text-black border-f1-teal shadow-[0_0_10px_rgba(0,210,190,0.3)]' 
-                             : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'
+                             ? 'bg-f1-teal text-black border-f1-teal shadow-[0_0_15px_rgba(0,210,190,0.2)]' 
+                             : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'
                          }`}
                        >
                          特定區段
-                         <span className="block text-[8px] opacity-70">Section</span>
+                         <span className="text-[9px] opacity-70 font-mono">SECTION</span>
                        </button>
                      </div>
                    </div>
