@@ -57,7 +57,7 @@ export const analyzeTrackImage = async (
   }
 
   const weatherContext = weather === 'Wet' 
-    ? '目前賽道狀況為：雨天 (Wet)。請務必針對濕地駕駛調整建議：煞車點通常需要更早且更平順，賽車路線應避開路面橡膠堆積區 (Rain Line)，單圈時間通常會比乾地慢 10-15% 甚至更多。' 
+    ? '目前賽道狀況為：雨天 (Wet)。請務必針對濕地駕駛調整建議：煞車點通常需要更早且更平順，賽車路線應避開路面橡膠堆積區 (Rain Line)。\n[極重要] 請在策略與調校建議中，特別加入「雨胎配方建議 (Tire Compound)」與「濕地胎壓 (Wet Pressure)」的具體數值。' 
     : '目前賽道狀況為：晴天 (Dry)。請針對標準乾地駕駛提供最佳性能建議 (Slicks)。';
 
   // Detailed engineering contexts for each vehicle type
@@ -73,9 +73,11 @@ export const analyzeTrackImage = async (
       
       [建議調校範圍 Reference Ranges]：
       - 前翼角度 (Front Wing): [Monza: 10°-18°] | [Spa/Suzuka: 28°-35°] | [Monaco: 45°-50°+].
+      - [進階空力] 空力平衡 (Aero Balance): 關鍵參數. 調整前翼角度 (Flap Angle) 來改變前軸負載佔比. 增加角度 (Add Clicks) = 更多車頭指向 (Pointy) 但後軸不穩 (Oversteer). 減少角度 = 穩定但推頭 (Understeer).
       - 後翼 (Rear Wing): 對應前翼平衡.
       - 離地高 (Ride Height): [前: 4-6mm, 後: 5-7mm] (極低, 需考量彈跳 Porpoising).
       - 胎壓 (Tire Pressure): [前: 22.0-24.0 psi, 後: 20.0-22.0 psi] (熱胎壓).
+      - [濕地調校 Wet Setup]: 胎壓 +1.0 psi 防止胎面閉合. 離地高 +2mm 防止底盤觸水打滑 (Aquaplaning). 煞車平衡前移 2%.
       - 懸吊硬度 (Spring Rate): [前: 200-250 N/mm (Stiff), 後: 160-200 N/mm (Stiff)] (極硬以支撐空力負載).
       - 避震阻尼 (Damping): [高速壓縮: Stiff (硬), 低速回彈: Medium (中)] (控制 Pitch/Heave).
       - 防傾桿 (ARB): [前: Hard (硬-轉向反應), 後: Soft (軟-出彎牽引)].
@@ -94,7 +96,9 @@ export const analyzeTrackImage = async (
       
       [建議調校範圍 Reference Ranges]：
       - 離地高 (Ride Height): [60mm - 80mm] (適應街道顛簸).
+      - [進階空力] 低風阻設定 (Low Drag): 因為電量限制，減少阻力比增加下壓力更重要. 底盤擴散器 (Diffuser) 是主要下壓力來源，車高設定直接影響底盤效應.
       - 胎壓 (Tire Pressure): [1.3 - 1.6 bar] (較低以增加接地面積).
+      - [濕地調校 Wet Setup]: 胎壓維持或微降 (依賽道積水). 重點是降低 Regen 扭力輸出避免後輪鎖死.
       - 懸吊硬度 (Spring Rate): [前: 90-110 N/mm (Soft), 後: 80-100 N/mm (Soft)] (較軟以適應街道顛簸).
       - 避震阻尼 (Damping): [壓縮: Soft (軟-吸震), 回彈: Fast/Soft (快/軟-保持接地)].
       - 動能回收 (Regen Level): [前端: 250kW, 後端: 350kW] (軟體設定).
@@ -113,12 +117,14 @@ export const analyzeTrackImage = async (
       
       [建議調校範圍 Reference Ranges]：
       - 尾翼角度 (Rear Wing): [1° (Low Drag) - 12° (Max Downforce)].
+      - [進階空力] Rake (車身俯仰角): 車尾抬高 (High Rake) 可增加擴散器效率，但過高會导致氣流剝離 (Stall). 前鏟 (Splitter) 與尾翼需前後配對平衡.
       - 離地高 (Ride Height): [前: 55-65mm, 後: 65-80mm] (Rake 角度重要).
       - 懸吊硬度 (Spring Rate): [前: 180-220 N/mm (Medium-Stiff), 後: 190-230 N/mm (Stiff)] (視引擎配置).
       - 避震阻尼 (Damping): [Bump: 5-8/10 (Medium), Rebound: 4-7/10 (Medium-Soft)] (4-Way Adjustable).
       - ABS 設定: [乾地: 3-5, 濕地: 6-9].
       - TC 設定: [出彎: 2-4, 保胎: 5-7].
       - 胎壓 (Tire Pressure): [2.0 - 2.1 bar] (熱胎壓 Hot).
+      - [濕地調校 Wet Setup]: 胎壓 [2.1 - 2.3 bar] (需較高壓以撐開胎紋). ABS/TC 段數調高 (+2~+4). 避震調軟.
       
       [物理特性]：車身較重，慣性大。依賴 ABS 與 TC (循跡系統)。
       [性能基準]：單圈比 F1 慢 20-30 秒。
@@ -133,10 +139,12 @@ export const analyzeTrackImage = async (
       
       [建議調校範圍 Reference Ranges]：
       - 車架硬度 (Chassis Stiffness): [前扭力桿: Soft/Medium/Stiff (可調), 後軸: Medium/Hard (Type N/H)].
+      - [進階空力] 人體空力 (Driver Aero): 無空力套件. 直道必須縮頭駝背 (Tuck in) 減少身體迎風面積. 手肘內收.
       - 座椅支撐桿 (Seat Stays): [每側 1-2 支] (越多越 Stiff (硬)，增加後輪抓地力).
       - 後輪距 (Rear Track Width): [1380mm - 1400mm (Max)]. (寬=Stable (穩)/Grip, 窄=Loose (滑)/Agile).
       - 前輪距 (Front Track): 透過墊片調整. (寬=Precise (精準), 窄=Slow Response (慢)).
       - 胎壓 (Tire Pressure): [0.6 - 1.0 bar] (極低，視氣溫而定).
+      - [濕地調校 Wet Setup]: 胎壓大幅增加至 [1.2 - 1.8 bar]. 前輪距調到最寬 (Max Width). 鬆開後保桿螺絲讓車架更軟.
       - 齒比 (Sprocket): [例如: 11/78 (加速) - 12/75 (尾速)]. 需依直道長度調整.
       
       [物理特性]：無懸吊、後軸死軸 (Solid Axle)、超高馬力重量比。
@@ -152,10 +160,12 @@ export const analyzeTrackImage = async (
       
       [建議調校範圍 Reference Ranges]：
       - 胎壓 (Tire Pressure): [冷: 28-30 psi -> 熱: 34-36 psi]. (避免超過 38psi).
+      - [進階空力] 升力抑制 (Lift Reduction): 街車高速時車身會產生升力導致發飄. 前保桿下擾流 (Lip) 與平整化底盤能提升高速穩定性，而非追求過彎下壓力.
       - 懸吊硬度 (Spring Rate): [前: 40-80 N/mm (Soft), 後: 50-90 N/mm (Soft)] (一般偏軟).
       - 避震阻尼 (Damping): [壓縮: Medium (中), 回彈: Slow/Stiff (慢/硬)] (控制車身側傾). 若為電子避震請切換至 Track/Corsa (Stiff) 模式.
       - 若為改裝避震 (Coilovers): 建議設定 [前: 10-12kg, 後: 8-10kg].
       - 來令片 (Pads): 建議升級高溫賽道片 (Endurance/Sprint).
+      - [濕地調校 Wet Setup]: 保持原廠建議胎壓或 +1 psi. 勿使用半熱熔胎 (Cup 2) 若有積水. 開啟所有電子輔助 (ESC/TC).
       
       [物理特性]：懸吊軟、側傾大、煞車與輪胎極易熱衰竭。
       [性能基準]：比 GT3 慢很多。彎中速度受限於輪胎物理抓地力。
