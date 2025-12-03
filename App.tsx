@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Header } from './components/Header';
 import { CornerCard } from './components/CornerCard';
@@ -9,10 +10,10 @@ import { TrackMap } from './components/TrackMap';
 import { TelemetryPanel } from './components/TelemetryPanel';
 import { TrackInfoInput } from './components/TrackInfoInput';
 import { analyzeTrackImage } from './services/geminiService';
-import { AnalysisStatus, TrackAnalysis, UploadState, WeatherCondition, MapMarker, VehicleType, StartConfig } from './types';
+import { AnalysisStatus, TrackAnalysis, UploadState, WeatherCondition, MapMarker, VehicleType, StartConfig, VideoAnalysisMode } from './types';
 
 function App() {
-  const [uploadState, setUploadState] = useState<UploadState>({ file: null, previewUrl: null });
+  const [uploadState, setUploadState] = useState<UploadState>({ file: null, previewUrl: null, mediaType: 'image' });
   const [markers, setMarkers] = useState<MapMarker[]>([]);
   const [startConfig, setStartConfig] = useState<StartConfig | null>(null);
   const [status, setStatus] = useState<AnalysisStatus>(AnalysisStatus.IDLE);
@@ -20,13 +21,14 @@ function App() {
   const [vehicle, setVehicle] = useState<VehicleType>('F1');
   const [trackName, setTrackName] = useState<string>('');
   const [trackLength, setTrackLength] = useState<string>('');
+  const [videoMode, setVideoMode] = useState<VideoAnalysisMode>('FullLap');
   const [analysis, setAnalysis] = useState<TrackAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loadingStep, setLoadingStep] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadingSteps = [
-    { id: 0, title: "掃描賽道幾何", subtitle: "Scanning Track Geometry" },
+    { id: 0, title: "掃描賽道幾何/影像", subtitle: "Scanning Geometry & Footage" },
     { id: 1, title: "物理模型運算", subtitle: "Calculating Physics & Grip" },
     { id: 2, title: "最佳路線模擬", subtitle: "Simulating Racing Lines" },
     { id: 3, title: "生成策略報告", subtitle: "Compiling Telemetry Data" }
@@ -46,14 +48,25 @@ function App() {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (!file.type.startsWith('image/')) {
-        setError('請上傳有效的影像檔案 (JPG, PNG)。');
+      const isVideo = file.type.startsWith('video/');
+      const isImage = file.type.startsWith('image/');
+
+      if (!isVideo && !isImage) {
+        setError('請上傳有效的影像或影片檔案 (JPG, PNG, MP4, MOV)。');
         return;
       }
+
+      // Basic size check for video to prevent browser crash on base64 conversion
+      if (isVideo && file.size > 50 * 1024 * 1024) {
+         setError('影片檔案過大，建議上傳 50MB 以下的短片以確保分析順暢。');
+         return;
+      }
+
       const previewUrl = URL.createObjectURL(file);
-      setUploadState({ file, previewUrl });
+      setUploadState({ file, previewUrl, mediaType: isVideo ? 'video' : 'image' });
       setMarkers([]); // Reset markers
       setStartConfig(null); // Reset start line
+      setVideoMode('FullLap'); // Reset video mode
       setStatus(AnalysisStatus.IDLE);
       setAnalysis(null);
       setError(null);
@@ -61,7 +74,7 @@ function App() {
   };
 
   const handleClearImage = () => {
-    setUploadState({ file: null, previewUrl: null });
+    setUploadState({ file: null, previewUrl: null, mediaType: 'image' });
     setMarkers([]);
     setStartConfig(null);
     setAnalysis(null);
@@ -160,27 +173,31 @@ function App() {
     try {
       setStatus(AnalysisStatus.ANALYZING);
       
-      let imageInput: File | string = uploadState.file;
-      const hasOverlay = markers.length > 0 || startConfig !== null;
-
-      // If user added markers or start line, composite them onto the image
-      if (hasOverlay) {
-        imageInput = await generateMarkedImage(uploadState.file, markers, startConfig);
+      let inputPayload: File | string = uploadState.file;
+      
+      // Only process markers overlay if it's an image
+      if (uploadState.mediaType === 'image') {
+        const hasOverlay = markers.length > 0 || startConfig !== null;
+        if (hasOverlay) {
+          inputPayload = await generateMarkedImage(uploadState.file, markers, startConfig);
+        }
       }
 
       const result = await analyzeTrackImage(
-        imageInput, 
+        inputPayload, 
         weather, 
         vehicle, 
         markers, 
         trackName,
-        trackLength
+        trackLength,
+        uploadState.mediaType,
+        videoMode
       );
       setAnalysis(result);
       setStatus(AnalysisStatus.SUCCESS);
     } catch (err) {
       console.error(err);
-      setError('分析失敗。AI 無法處理此影像，請確保賽道圖清晰。');
+      setError('分析失敗。AI 無法處理此檔案，請確保影像或影片清晰且格式正確。');
       setStatus(AnalysisStatus.ERROR);
     }
   };
@@ -194,14 +211,20 @@ function App() {
     e.preventDefault();
     e.stopPropagation();
     const file = e.dataTransfer.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-       const previewUrl = URL.createObjectURL(file);
-       setUploadState({ file, previewUrl });
-       setMarkers([]);
-       setStartConfig(null);
-       setStatus(AnalysisStatus.IDLE);
-       setAnalysis(null);
-       setError(null);
+    if (file) {
+      const isVideo = file.type.startsWith('video/');
+      const isImage = file.type.startsWith('image/');
+      
+      if (isVideo || isImage) {
+        const previewUrl = URL.createObjectURL(file);
+        setUploadState({ file, previewUrl, mediaType: isVideo ? 'video' : 'image' });
+        setMarkers([]);
+        setStartConfig(null);
+        setVideoMode('FullLap');
+        setStatus(AnalysisStatus.IDLE);
+        setAnalysis(null);
+        setError(null);
+      }
     }
   };
 
@@ -218,7 +241,7 @@ function App() {
                賽道遙測與策略 AI
              </h2>
              <p className="text-gray-400 max-w-2xl mx-auto mb-8">
-               上傳賽道圖（官方佈局或手繪），透過電腦視覺即時分析煞車點、檔位選擇和賽車路線建議。
+               上傳賽道圖或賽車影片（MP4/MOV），透過 AI 視覺即時分析煞車點、彎道技巧與遙測數據預估。
                支援 F1、Formula E、GT3、卡丁車等多種車型。
              </p>
           </div>
@@ -230,15 +253,41 @@ function App() {
           <div className="lg:col-span-5 flex flex-col gap-6">
             
             {uploadState.previewUrl ? (
-              <TrackMap 
-                imageUrl={uploadState.previewUrl} 
-                markers={markers}
-                setMarkers={setMarkers}
-                startConfig={startConfig}
-                setStartConfig={setStartConfig}
-                onClearImage={handleClearImage}
-                readOnly={false}
-              />
+              <div className="flex flex-col gap-3">
+                {uploadState.mediaType === 'video' ? (
+                  <div className="relative border-2 border-dashed border-f1-teal/50 bg-black rounded-xl overflow-hidden min-h-[300px] flex flex-col items-center justify-center p-2">
+                    <video 
+                      src={uploadState.previewUrl} 
+                      controls 
+                      className="w-full h-full object-contain max-h-[500px] rounded-lg"
+                    />
+                    <div className="absolute top-4 left-4 bg-f1-red/90 text-white text-xs font-bold px-3 py-1 rounded-full animate-pulse shadow-lg">
+                      VIDEO MODE
+                    </div>
+                    <button 
+                      onClick={handleClearImage}
+                      className="absolute top-4 right-4 bg-black/50 hover:bg-black/80 text-white rounded-full p-2 transition-colors"
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                    <p className="text-[10px] text-gray-500 mt-2">
+                      * 影片分析模式下不支援手動標記與起跑線設定
+                    </p>
+                  </div>
+                ) : (
+                  <TrackMap 
+                    imageUrl={uploadState.previewUrl} 
+                    markers={markers}
+                    setMarkers={setMarkers}
+                    startConfig={startConfig}
+                    setStartConfig={setStartConfig}
+                    onClearImage={handleClearImage}
+                    readOnly={false}
+                  />
+                )}
+              </div>
             ) : (
               <div 
                 className="relative border-2 border-dashed border-white/20 hover:border-white/40 bg-white/5 rounded-xl overflow-hidden transition-all duration-300 min-h-[300px] flex flex-col items-center justify-center cursor-pointer"
@@ -250,14 +299,14 @@ function App() {
                   <svg className="mx-auto h-12 w-12 text-gray-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  <p className="text-sm text-gray-300 font-medium">將賽道圖拖放到此處</p>
-                  <p className="text-xs text-gray-500 mt-1 mb-4">或 點擊上傳</p>
+                  <p className="text-sm text-gray-300 font-medium">拖放 圖片 或 影片 到此處</p>
+                  <p className="text-xs text-gray-500 mt-1 mb-4">或 點擊上傳 (JPG, PNG, MP4)</p>
                 </div>
                 <input 
                   type="file" 
                   ref={fileInputRef} 
                   className="hidden" 
-                  accept="image/*"
+                  accept="image/*,video/*"
                   onChange={handleFileSelect} 
                 />
               </div>
@@ -280,6 +329,51 @@ function App() {
                    setVehicle={setVehicle}
                    disabled={status === AnalysisStatus.ANALYZING}
                  />
+                 
+                 {/* Video Analysis Mode Selector */}
+                 {uploadState.mediaType === 'video' && (
+                   <div className="flex flex-col gap-2 mb-2 w-full">
+                     <label className="text-xs text-gray-400 uppercase tracking-wider font-semibold">影片分析模式 (Video Analysis Mode)</label>
+                     <div className="grid grid-cols-3 gap-2">
+                       <button
+                         onClick={() => setVideoMode('FullLap')}
+                         disabled={status === AnalysisStatus.ANALYZING}
+                         className={`py-2 px-2 rounded-lg text-xs font-bold transition-all border ${
+                           videoMode === 'FullLap' 
+                             ? 'bg-f1-teal text-black border-f1-teal shadow-[0_0_10px_rgba(0,210,190,0.3)]' 
+                             : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'
+                         }`}
+                       >
+                         完整單圈
+                         <span className="block text-[8px] opacity-70">Full Lap</span>
+                       </button>
+                       <button
+                         onClick={() => setVideoMode('KeyCorners')}
+                         disabled={status === AnalysisStatus.ANALYZING}
+                         className={`py-2 px-2 rounded-lg text-xs font-bold transition-all border ${
+                           videoMode === 'KeyCorners' 
+                             ? 'bg-f1-teal text-black border-f1-teal shadow-[0_0_10px_rgba(0,210,190,0.3)]' 
+                             : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'
+                         }`}
+                       >
+                         關鍵彎道
+                         <span className="block text-[8px] opacity-70">Key Corners</span>
+                       </button>
+                       <button
+                         onClick={() => setVideoMode('SpecificSection')}
+                         disabled={status === AnalysisStatus.ANALYZING}
+                         className={`py-2 px-2 rounded-lg text-xs font-bold transition-all border ${
+                           videoMode === 'SpecificSection' 
+                             ? 'bg-f1-teal text-black border-f1-teal shadow-[0_0_10px_rgba(0,210,190,0.3)]' 
+                             : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'
+                         }`}
+                       >
+                         特定區段
+                         <span className="block text-[8px] opacity-70">Section</span>
+                       </button>
+                     </div>
+                   </div>
+                 )}
 
                  <WeatherSelector 
                    weather={weather} 
@@ -296,7 +390,7 @@ function App() {
                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    開始分析賽道
+                    開始分析 {uploadState.mediaType === 'video' ? '影片' : '賽道'}
                   </button>
                 )}
 
@@ -435,7 +529,7 @@ function App() {
                    <h3 className="text-xl font-display font-bold text-white mb-4 border-l-4 border-f1-red pl-3">
                      彎道詳細分析 (Corner Analysis)
                    </h3>
-                   {markers.length > 0 && (
+                   {markers.length > 0 && uploadState.mediaType === 'image' && (
                      <p className="text-sm text-gray-400 mb-4 bg-white/5 p-2 rounded">
                        * 顯示順序對應圖上標記 (1 - {markers.length})
                      </p>
@@ -457,7 +551,9 @@ function App() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                     <p className="uppercase tracking-widest text-xs font-bold opacity-50">
-                      {markers.length > 0 || startConfig ? "已準備好標記，點擊「開始分析」..." : "等待遙測數據..."}
+                      {(markers.length > 0 || startConfig) && uploadState.mediaType === 'image' 
+                        ? "已準備好標記，點擊「開始分析」..." 
+                        : uploadState.previewUrl ? "準備分析媒體素材..." : "等待遙測數據..."}
                     </p>
                    </>
                 )}

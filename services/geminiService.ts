@@ -1,7 +1,7 @@
 
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { TrackAnalysis, WeatherCondition, VehicleType, MapMarker } from '../types';
+import { TrackAnalysis, WeatherCondition, VehicleType, MapMarker, VideoAnalysisMode } from '../types';
 
 // Initialize the Gemini client
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -23,13 +23,15 @@ const fileToGenerativePart = async (file: File): Promise<string> => {
 };
 
 /**
- * Analyzes the F1 track image using Gemini 2.5 Flash
- * @param imageInput Can be a File object or a Base64 Data URL string
+ * Analyzes the F1 track image or video using Gemini 2.5 Flash
+ * @param imageInput Can be a File object (image/video) or a Base64 Data URL string (canvas image)
  * @param weather Weather condition
  * @param vehicle Vehicle type context
- * @param markers Array of markers with coordinates
+ * @param markers Array of markers with coordinates (Only used for images)
  * @param trackName Optional user provided track name
  * @param trackLength Optional user provided track length in meters
+ * @param mediaType 'image' or 'video' to adjust prompt logic
+ * @param videoMode Mode of analysis for video input
  */
 export const analyzeTrackImage = async (
   imageInput: File | string, 
@@ -37,17 +39,21 @@ export const analyzeTrackImage = async (
   vehicle: VehicleType,
   markers: MapMarker[] = [],
   trackName: string = '',
-  trackLength: string = ''
+  trackLength: string = '',
+  mediaType: 'image' | 'video' = 'image',
+  videoMode: VideoAnalysisMode = 'FullLap'
 ): Promise<TrackAnalysis> => {
   
   let base64Data = "";
+  let mimeType = "image/jpeg";
 
   if (typeof imageInput === 'string') {
     // If input is a data URL string (e.g. from canvas), strip the prefix
     base64Data = imageInput.split(',')[1];
   } else {
-    // If input is a File object
+    // If input is a File object (Image or Video)
     base64Data = await fileToGenerativePart(imageInput);
+    mimeType = imageInput.type;
   }
 
   const weatherContext = weather === 'Wet' 
@@ -160,39 +166,64 @@ export const analyzeTrackImage = async (
 
   const selectedVehicleContext = vehicleContexts[vehicle];
 
-  // Generate coordinate hints for the AI
-  const markerHints = markers.map((m, i) => {
-    // Convert 0-100% to rough quadrant description
-    let hPos = m.x < 33 ? "左側(Left)" : m.x > 66 ? "右側(Right)" : "中間(Center)";
-    let vPos = m.y < 33 ? "上方(Top)" : m.y > 66 ? "下方(Bottom)" : "中間(Middle)";
-    return `   - 標記 ${i+1}: 位於圖片水平 ${Math.round(m.x)}%, 垂直 ${Math.round(m.y)}% 的位置 (${hPos}-${vPos})`;
-  }).join('\n');
+  // Logic for Image Markers (Only relevant if mediaType is image)
+  let markerContext = "";
+  if (mediaType === 'image') {
+    const markerHints = markers.map((m, i) => {
+      let hPos = m.x < 33 ? "左側(Left)" : m.x > 66 ? "右側(Right)" : "中間(Center)";
+      let vPos = m.y < 33 ? "上方(Top)" : m.y > 66 ? "下方(Bottom)" : "中間(Middle)";
+      return `   - 標記 ${i+1}: 位於圖片水平 ${Math.round(m.x)}%, 垂直 ${Math.round(m.y)}% 的位置 (${hPos}-${vPos})`;
+    }).join('\n');
 
-  const markerContext = markers.length > 0
-    ? `
-      ***[極重要：使用者標記優先模式]***
-      使用者在圖片上「已經」繪製了紅色的圓形標記，內有白色數字（例如 1, 2, 3...）。
-      
-      為了協助你精準定位，以下是每個標記在圖片中的座標提示 (Coordinate Hints)：
-      ${markerHints}
+    markerContext = markers.length > 0
+      ? `
+        ***[極重要：使用者標記優先模式]***
+        使用者在圖片上「已經」繪製了紅色的圓形標記，內有白色數字（例如 1, 2, 3...）。
+        為了協助你精準定位，以下是每個標記在圖片中的座標提示 (Coordinate Hints)：
+        ${markerHints}
 
-      你的唯一任務是分析「被標記」的那些彎道。請嚴格執行以下步驟：
+        你的唯一任務是分析「被標記」的那些彎道。請嚴格執行以下步驟：
+        1. 【視覺搜尋】：根據上述座標提示，用電腦視覺在圖片中找到對應位置的紅色圓圈標記。
+        2. 【位置鎖定】：確認該標記 "1" 位於賽道的哪個彎角。
+        3. 【資料寫入】：在 JSON 的 corners 陣列中，建立一個物件，其 'number' 欄位必須為 1。
+        4. 【內容分析】：該物件的 'advice' (建議)、'brakingZone' (煞車區) 等內容，必須是針對「標記 1 所在位置」的物理特性進行分析。
+        5. 【命名備註】：在 'name' 欄位中，除了寫彎道名稱，請務必括號備註其真實身份。例如："使用者標記 1 (鈴鹿 T7 Dunlop Curve)"。
+        
+        請對圖片上所有的標記數字重複此步驟。
+        ***嚴格限制***：
+        - JSON output 的 corners 陣列長度，原則上應該等於使用者標記的數量。
+        - 絕對不要重新編號。使用者的標記 1 就是 JSON number 1。
+      `
+      : `
+        請自動辨識賽道上的關鍵彎道，並按照賽道行進順序為它們編號 (1, 2, 3...)。
+      `;
+  } else {
+    // Video Context based on mode
+    let videoModeInstruction = "";
+    switch (videoMode) {
+      case 'FullLap':
+        videoModeInstruction = "請分析影片中完整單圈 (Full Lap) 的表現。按賽道順序標出所有關鍵彎道。";
+        break;
+      case 'KeyCorners':
+        videoModeInstruction = "請僅針對影片中最困難或最具代表性的關鍵彎道 (Key Corners) 進行分析，忽略簡單的直線或全油門路段。";
+        break;
+      case 'SpecificSection':
+        videoModeInstruction = "請專注分析影片中呈現的特定區段 (Specific Section)。分析該區段內的連續彎道組合與駕駛節奏。";
+        break;
+    }
+
+    markerContext = `
+      ***[影片分析模式 Video Mode]***
+      使用者上傳了一段賽車影片 (Onboard 或 賽事轉播)。
+      目前的分析模式設定為: 【${videoMode} - ${videoModeInstruction}】
       
-      1. 【視覺搜尋】：根據上述座標提示，用電腦視覺在圖片中找到對應位置的紅色圓圈標記。
-      2. 【位置鎖定】：確認該標記 "1" 位於賽道的哪個彎角。
-      3. 【資料寫入】：在 JSON 的 corners 陣列中，建立一個物件，其 'number' 欄位必須為 1。
-      4. 【內容分析】：該物件的 'advice' (建議)、'brakingZone' (煞車區) 等內容，必須是針對「標記 1 所在位置」的物理特性進行分析。
-      5. 【命名備註】：在 'name' 欄位中，除了寫彎道名稱，請務必括號備註其真實身份。例如："使用者標記 1 (鈴鹿 T7 Dunlop Curve)"。
-      
-      請對圖片上所有的標記數字重複此步驟。
-      
-      ***嚴格限制***：
-      - JSON output 的 corners 陣列長度，原則上應該等於使用者標記的數量。
-      - 絕對不要重新編號。使用者的標記 1 就是 JSON number 1。
-    `
-    : `
-      請自動辨識賽道上的關鍵彎道，並按照賽道行進順序為它們編號 (1, 2, 3...)。
+      請嘗試從影片中提取以下資訊：
+      1. 透過畫面中的賽道特徵辨識賽道。
+      2. 根據所選模式 (${videoMode})，提取對應的彎道資訊。
+      3. 觀察駕駛的行車路線，指出煞車點與彎中速度控制。
+      4. 若影片包含遙測數據（時速表、G值、檔位），請利用這些資訊來優化你的建議。
     `;
+  }
 
   // Construction of user provided info context
   let userTrackInfo = "";
@@ -224,7 +255,7 @@ export const analyzeTrackImage = async (
 
   const prompt = `
     你是一位世界級的賽車工程師，專精於數據遙測與賽道分析。
-    請極度詳細地分析提供的賽道圖影像。
+    請極度詳細地分析提供的${mediaType === 'video' ? '賽車影片素材' : '賽道圖影像'}。
     
     ${weatherContext}
     ${selectedVehicleContext}
@@ -329,7 +360,7 @@ export const analyzeTrackImage = async (
         parts: [
           {
             inlineData: {
-              mimeType: "image/jpeg", // When using canvas base64, usually jpeg or png
+              mimeType: mimeType, 
               data: base64Data
             }
           },
@@ -355,6 +386,6 @@ export const analyzeTrackImage = async (
 
   } catch (error) {
     console.error("Gemini Analysis Error:", error);
-    throw new Error("Failed to analyze the track image. Please try again.");
+    throw new Error("Failed to analyze the media. Please try again.");
   }
 };

@@ -4,6 +4,8 @@ export type WeatherCondition = 'Dry' | 'Wet';
 
 export type VehicleType = 'F1' | 'FormulaE' | 'GT3' | 'Karting' | 'RoadCar';
 
+export type VideoAnalysisMode = 'FullLap' | 'KeyCorners' | 'SpecificSection';
+
 export interface MapMarker {
   id: number;
   x: number; // percentage
@@ -59,6 +61,7 @@ export interface TrackAnalysis {
 export interface UploadState {
   file: File | null;
   previewUrl: string | null;
+  mediaType: 'image' | 'video';
 }
 
 export enum AnalysisStatus {
