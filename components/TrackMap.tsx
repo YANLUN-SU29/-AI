@@ -38,10 +38,7 @@ export const TrackMap: React.FC<TrackMapProps> = ({
     const y = ((e.clientY - rect.top) / rect.height) * 100;
 
     if (toolMode === 'marker') {
-       // Add Marker Logic (Click to add)
-       // We'll add it on MouseUp or Click usually, but to prevent conflict with drag,
-       // let's do it here or keep existing logic.
-       // The existing logic used onClick. Let's stick to onClick for markers to differentiate from drag.
+       // Marker adding is handled in onClick to distinguish from drag start
     } else if (toolMode === 'start') {
       // Start Line Logic (Drag to set direction)
       e.preventDefault(); // Prevent text selection
@@ -195,6 +192,22 @@ export const TrackMap: React.FC<TrackMapProps> = ({
           onClick={handleContainerClick}
           onMouseDown={handleContainerMouseDown}
         >
+          {/* Delete Button - Top Right Overlay */}
+          {!readOnly && (
+             <button
+               onClick={(e) => {
+                 e.stopPropagation();
+                 onClearImage();
+               }}
+               className="absolute top-4 right-4 z-50 bg-black/60 hover:bg-f1-red text-white p-2 rounded-full backdrop-blur-sm border border-white/20 transition-all shadow-lg opacity-80 hover:opacity-100 hover:scale-110"
+               title="移除圖片 / Clear Image"
+             >
+               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+               </svg>
+             </button>
+          )}
+
           <img 
             src={imageUrl} 
             alt="Track Preview" 

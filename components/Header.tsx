@@ -1,6 +1,11 @@
+
 import React from 'react';
 
-export const Header: React.FC = () => {
+interface HeaderProps {
+  onOpenTutorial?: () => void;
+}
+
+export const Header: React.FC<HeaderProps> = ({ onOpenTutorial }) => {
   return (
     <header className="border-b border-white/10 bg-f1-dark/80 backdrop-blur-md sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -22,7 +27,15 @@ export const Header: React.FC = () => {
           </div>
         </div>
         <div className="flex items-center gap-4">
-           <a href="#" className="text-gray-400 hover:text-white text-sm transition-colors hidden sm:block">使用說明</a>
+           <button 
+             onClick={onOpenTutorial}
+             className="text-gray-400 hover:text-white text-sm transition-colors hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-white/5"
+           >
+             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+             </svg>
+             教學說明
+           </button>
            <div className="h-4 w-[1px] bg-white/20 hidden sm:block"></div>
            <span className="text-xs font-mono text-f1-teal animate-pulse flex items-center gap-2">
              <span className="w-1.5 h-1.5 rounded-full bg-f1-teal"></span>

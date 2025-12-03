@@ -12,6 +12,11 @@ export interface MapMarker {
   y: number; // percentage
 }
 
+export interface WayPoint {
+  x: number;
+  y: number;
+}
+
 export interface StartConfig {
   x: number; // percentage
   y: number; // percentage

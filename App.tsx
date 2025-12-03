@@ -1,6 +1,7 @@
 
-
 import React, { useState, useRef, useEffect } from 'react';
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 import { Header } from './components/Header';
 import { CornerCard } from './components/CornerCard';
 import { StrategyPanel } from './components/StrategyPanel';
@@ -9,6 +10,8 @@ import { VehicleSelector } from './components/VehicleSelector';
 import { TrackMap } from './components/TrackMap';
 import { TelemetryPanel } from './components/TelemetryPanel';
 import { TrackInfoInput } from './components/TrackInfoInput';
+// import { TrackSimulation } from './components/TrackSimulation'; // Removed as per request
+import { TutorialModal } from './components/TutorialModal';
 import { analyzeTrackImage } from './services/geminiService';
 import { AnalysisStatus, TrackAnalysis, UploadState, WeatherCondition, MapMarker, VehicleType, StartConfig, VideoAnalysisMode } from './types';
 
@@ -25,7 +28,11 @@ function App() {
   const [analysis, setAnalysis] = useState<TrackAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loadingStep, setLoadingStep] = useState(0);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isTutorialOpen, setIsTutorialOpen] = useState(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
 
   const loadingSteps = [
     { id: 0, title: "掃描賽道幾何/影像", subtitle: "Scanning Geometry & Footage" },
@@ -202,6 +209,53 @@ function App() {
     }
   };
 
+  const handleExportPDF = async () => {
+    if (!resultsRef.current || !analysis) return;
+    
+    setIsExporting(true);
+    try {
+      const canvas = await html2canvas(resultsRef.current, {
+        scale: 2, // Improve quality
+        useCORS: true,
+        backgroundColor: '#0d0d10', // Match body bg
+        logging: false
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const imgWidth = 210; // A4 width in mm
+      const pageHeight = 297; // A4 height in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      // First page
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      // Additional pages
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      pdf.save(`${analysis.circuitName || 'Track_Analysis'}_Report.pdf`);
+    } catch (err) {
+      console.error("PDF Export failed:", err);
+      setError("PDF 匯出失敗，請重試");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -230,7 +284,9 @@ function App() {
 
   return (
     <div className="min-h-screen flex flex-col font-sans">
-      <Header />
+      <Header onOpenTutorial={() => setIsTutorialOpen(true)} />
+      
+      <TutorialModal isOpen={isTutorialOpen} onClose={() => setIsTutorialOpen(false)} />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
@@ -490,7 +546,7 @@ function App() {
           {/* Right Column: Analysis Results */}
           <div className="lg:col-span-7">
             {analysis ? (
-              <div className="space-y-6 animate-fade-in">
+              <div className="space-y-6 animate-fade-in" ref={resultsRef}>
                 {/* Header Info */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-white/10 pb-6 gap-4">
                   <div>
@@ -500,16 +556,38 @@ function App() {
                        {analysis.locationGuess || "未知地點"}
                     </p>
                   </div>
-                  <div className="flex gap-4">
-                    <div className="text-right">
-                      <span className="block text-[10px] text-gray-500 uppercase tracking-wider">彎道數</span>
-                      <span className="font-display text-2xl font-bold">{analysis.totalCorners}</span>
+                  <div className="flex flex-col sm:flex-row gap-4 items-end sm:items-center">
+                    <div className="flex gap-4">
+                        <div className="text-right">
+                        <span className="block text-[10px] text-gray-500 uppercase tracking-wider">彎道數</span>
+                        <span className="font-display text-2xl font-bold">{analysis.totalCorners}</span>
+                        </div>
+                        <div className="w-[1px] bg-white/10 h-10"></div>
+                        <div className="text-right">
+                        <span className="block text-[10px] text-gray-500 uppercase tracking-wider">車輛</span>
+                        <span className="font-display text-2xl font-bold text-gray-300">{vehicle}</span>
+                        </div>
                     </div>
-                    <div className="w-[1px] bg-white/10 h-10"></div>
-                     <div className="text-right">
-                      <span className="block text-[10px] text-gray-500 uppercase tracking-wider">車輛</span>
-                      <span className="font-display text-2xl font-bold text-gray-300">{vehicle}</span>
-                    </div>
+                    {/* Export PDF Button */}
+                    <button
+                        onClick={handleExportPDF}
+                        disabled={isExporting}
+                        className={`flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-all text-xs font-bold text-gray-300 hover:text-white ${isExporting ? 'opacity-50 cursor-wait' : ''}`}
+                    >
+                        {isExporting ? (
+                            <>
+                                <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                匯出中...
+                            </>
+                        ) : (
+                            <>
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                匯出 PDF 報告
+                            </>
+                        )}
+                    </button>
                   </div>
                 </div>
 
