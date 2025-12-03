@@ -1,4 +1,5 @@
 
+
 export type WeatherCondition = 'Dry' | 'Wet';
 
 export type VehicleType = 'F1' | 'FormulaE' | 'GT3' | 'Karting' | 'RoadCar';
@@ -25,6 +26,13 @@ export interface CornerAnalysis {
   gear?: number;
 }
 
+export interface SetupItem {
+  component: string; // e.g., "Front Wing", "Tire Pressure"
+  value: string;     // e.g., "24-26", "2.1"
+  unit?: string;     // e.g., "deg", "bar", "N/mm"
+  trend: 'Soft' | 'Medium' | 'Stiff' | 'Low' | 'High' | 'Balanced'; // For visual color coding
+}
+
 export interface SectorStats {
   sector1: string;
   sector2: string;
@@ -35,14 +43,15 @@ export interface SectorStats {
 export interface TrackAnalysis {
   circuitName: string;
   locationGuess?: string;
-  vehicle?: VehicleType; // Added field
+  vehicle?: VehicleType; 
   totalCorners: number;
   overallCharacter: string;
   corners: CornerAnalysis[];
   strategy: {
     tireWear: string;
     overtakingOpportunities: string;
-    setupSuggestion: string;
+    setupSuggestion: string; // Summary text
+    detailedSetup?: SetupItem[]; // Structured visual data
   };
   sectorStats?: SectorStats;
 }

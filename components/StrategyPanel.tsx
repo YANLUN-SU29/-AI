@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { TrackAnalysis, WeatherCondition, VehicleType } from '../types';
 
@@ -11,43 +12,34 @@ interface StrategyPanelProps {
 
 export const StrategyPanel: React.FC<StrategyPanelProps> = ({ strategy, overallCharacter, weather, vehicle }) => {
   
-  // Helper to get vehicle-specific setup context
-  const getVehicleSetupContext = (v?: VehicleType) => {
-    switch (v) {
-      case 'F1':
-        return {
-          label: 'F1 工程重點',
-          tips: ['前翼角度 (Front Wing)', '底板高度 (Ride Height)', 'ERS 部署模式', '輪胎傾角 (Camber)']
-        };
-      case 'FormulaE':
-        return {
-          label: 'FE 電控重點',
-          tips: ['動能回收 (Regen)', '能量管理 (Lift & Coast)', 'Attack Mode 策略', '後輪抓地力']
-        };
-      case 'GT3':
-        return {
-          label: 'GT3 調校重點',
-          tips: ['ABS 介入等級', 'TC 循跡控制', '後尾翼 (Rear Wing)', '懸吊阻尼']
-        };
-      case 'Karting':
-        return {
-          label: '卡丁車設定',
-          tips: ['前後輪距 (Track Width)', '化油器混油比', '齒盤齒比 (Sprocket)', '胎壓']
-        };
-      case 'RoadCar':
-        return {
-          label: '街車賽道化',
-          tips: ['胎壓管理 (熱胎壓)', '煞車散熱導風', '路線保守度', '車身動態控制']
-        };
+  // Helper to determine color based on trend
+  const getTrendColor = (trend: string) => {
+    switch (trend) {
+      case 'Stiff':
+      case 'High':
+        return 'bg-f1-red shadow-[0_0_8px_rgba(255,24,1,0.5)]';
+      case 'Medium':
+      case 'Balanced':
+        return 'bg-f1-teal shadow-[0_0_8px_rgba(0,210,190,0.5)]';
+      case 'Soft':
+      case 'Low':
+        return 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.5)]';
       default:
-        return {
-          label: '通用調校',
-          tips: ['煞車平衡', '懸吊軟硬', '輪胎管理']
-        };
+        return 'bg-gray-500';
     }
   };
 
-  const setupContext = getVehicleSetupContext(vehicle);
+  const getTrendWidth = (trend: string) => {
+    switch (trend) {
+      case 'Stiff':
+      case 'High': return '90%';
+      case 'Medium':
+      case 'Balanced': return '50%';
+      case 'Soft':
+      case 'Low': return '20%';
+      default: return '50%';
+    }
+  };
 
   return (
     <div className="bg-gradient-to-br from-f1-carbon to-gray-900 rounded-xl border border-white/10 p-6 relative overflow-hidden">
@@ -120,28 +112,52 @@ export const StrategyPanel: React.FC<StrategyPanelProps> = ({ strategy, overallC
           <p className="text-sm text-gray-300">{strategy.tireWear}</p>
         </div>
 
-        {/* Setup Suggestion - Enhanced with Vehicle Specifics */}
-        <div className="bg-black/20 p-4 rounded-lg border border-white/5 flex flex-col h-full">
-          <div className="flex items-center gap-2 mb-2 text-f1-teal">
+        {/* Setup Suggestion - Enhanced Visuals */}
+        <div className="bg-black/20 p-4 rounded-lg border border-white/5 flex flex-col h-full col-span-1 md:col-span-1">
+          <div className="flex items-center gap-2 mb-3 text-f1-teal">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
-            <span className="font-bold text-xs uppercase">調校重點</span>
+            <span className="font-bold text-xs uppercase">調校參數可視化</span>
           </div>
-          <p className="text-sm text-gray-300 mb-3 flex-grow">{strategy.setupSuggestion}</p>
           
-          {/* Dynamic Vehicle Specific Hints */}
-          {vehicle && (
-            <div className="mt-auto pt-3 border-t border-white/5">
-               <span className="text-[10px] text-f1-teal/80 font-bold uppercase mb-2 block">{setupContext.label}</span>
-               <div className="flex flex-wrap gap-1.5">
-                 {setupContext.tips.map((tip, idx) => (
-                   <span key={idx} className="text-[10px] bg-f1-teal/10 text-f1-teal px-1.5 py-0.5 rounded border border-f1-teal/20 whitespace-nowrap">
-                     {tip}
-                   </span>
-                 ))}
-               </div>
+          {/* Detailed Visual Bars */}
+          {strategy.detailedSetup && strategy.detailedSetup.length > 0 ? (
+            <div className="flex flex-col gap-3 mt-1">
+              {strategy.detailedSetup.map((item, idx) => (
+                <div key={idx} className="group">
+                  <div className="flex justify-between items-end mb-1">
+                    <span className="text-xs text-gray-400 font-medium group-hover:text-white transition-colors">
+                      {item.component}
+                    </span>
+                    <span className="text-xs font-mono font-bold text-f1-teal">
+                      {item.value} <span className="text-[9px] text-gray-500 ml-0.5">{item.unit}</span>
+                    </span>
+                  </div>
+                  {/* Visual Bar Container */}
+                  <div className="h-1.5 w-full bg-gray-700/50 rounded-full overflow-hidden flex items-center relative">
+                    {/* Background tick marks */}
+                    <div className="absolute inset-0 flex justify-between px-1 opacity-20">
+                       <div className="w-[1px] h-full bg-white"></div>
+                       <div className="w-[1px] h-full bg-white"></div>
+                       <div className="w-[1px] h-full bg-white"></div>
+                    </div>
+                    {/* Active Bar */}
+                    <div 
+                      className={`h-full rounded-full transition-all duration-1000 ${getTrendColor(item.trend)}`} 
+                      style={{ width: getTrendWidth(item.trend) }}
+                    ></div>
+                  </div>
+                  <div className="flex justify-between text-[8px] text-gray-600 mt-0.5 uppercase tracking-wide">
+                     <span>Soft / Low</span>
+                     <span>{item.trend}</span>
+                     <span>Stiff / High</span>
+                  </div>
+                </div>
+              ))}
             </div>
+          ) : (
+             <p className="text-sm text-gray-300">{strategy.setupSuggestion}</p>
           )}
         </div>
 

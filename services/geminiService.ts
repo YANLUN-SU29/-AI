@@ -1,4 +1,5 @@
 
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { TrackAnalysis, WeatherCondition, VehicleType, MapMarker } from '../types';
 
@@ -69,9 +70,9 @@ export const analyzeTrackImage = async (
       - 後翼 (Rear Wing): 對應前翼平衡.
       - 離地高 (Ride Height): [前: 4-6mm, 後: 5-7mm] (極低, 需考量彈跳 Porpoising).
       - 胎壓 (Tire Pressure): [前: 22.0-24.0 psi, 後: 20.0-22.0 psi] (熱胎壓).
-      - 懸吊硬度 (Spring Rate): [前: 200-250 N/mm, 後: 160-200 N/mm] (極硬以支撐空力負載).
-      - 避震阻尼 (Damping): [高速壓縮: 硬, 低速回彈: 中] (控制 Pitch/Heave).
-      - 防傾桿 (ARB): [前: 硬 (轉向反應), 後: 軟 (出彎牽引)].
+      - 懸吊硬度 (Spring Rate): [前: 200-250 N/mm (Stiff), 後: 160-200 N/mm (Stiff)] (極硬以支撐空力負載).
+      - 避震阻尼 (Damping): [高速壓縮: Stiff (硬), 低速回彈: Medium (中)] (控制 Pitch/Heave).
+      - 防傾桿 (ARB): [前: Hard (硬-轉向反應), 後: Soft (軟-出彎牽引)].
       
       [物理特性]：極致氣動效率、碳纖維煞車(極短煞車距離)、DRS 減阻系統、ERS 電能釋放。
       [性能基準]：地球上最快賽車。若為知名賽道，必須精準參考真實 F1 紀錄。
@@ -88,8 +89,8 @@ export const analyzeTrackImage = async (
       [建議調校範圍 Reference Ranges]：
       - 離地高 (Ride Height): [60mm - 80mm] (適應街道顛簸).
       - 胎壓 (Tire Pressure): [1.3 - 1.6 bar] (較低以增加接地面積).
-      - 懸吊硬度 (Spring Rate): [前: 90-110 N/mm, 後: 80-100 N/mm] (較軟以適應街道顛簸).
-      - 避震阻尼 (Damping): [壓縮: 軟 (吸震), 回彈: 快 (保持輪胎接地)].
+      - 懸吊硬度 (Spring Rate): [前: 90-110 N/mm (Soft), 後: 80-100 N/mm (Soft)] (較軟以適應街道顛簸).
+      - 避震阻尼 (Damping): [壓縮: Soft (軟-吸震), 回彈: Fast/Soft (快/軟-保持接地)].
       - 動能回收 (Regen Level): [前端: 250kW, 後端: 350kW] (軟體設定).
       - 煞車平衡 (Bias): 偏後 (依賴馬達 Regen).
       
@@ -107,8 +108,8 @@ export const analyzeTrackImage = async (
       [建議調校範圍 Reference Ranges]：
       - 尾翼角度 (Rear Wing): [1° (Low Drag) - 12° (Max Downforce)].
       - 離地高 (Ride Height): [前: 55-65mm, 後: 65-80mm] (Rake 角度重要).
-      - 懸吊硬度 (Spring Rate): [前: 180-220 N/mm, 後: 190-230 N/mm] (視引擎配置).
-      - 避震阻尼 (Damping): [Bump: 5-8/10, Rebound: 4-7/10] (4-Way Adjustable).
+      - 懸吊硬度 (Spring Rate): [前: 180-220 N/mm (Medium-Stiff), 後: 190-230 N/mm (Stiff)] (視引擎配置).
+      - 避震阻尼 (Damping): [Bump: 5-8/10 (Medium), Rebound: 4-7/10 (Medium-Soft)] (4-Way Adjustable).
       - ABS 設定: [乾地: 3-5, 濕地: 6-9].
       - TC 設定: [出彎: 2-4, 保胎: 5-7].
       - 胎壓 (Tire Pressure): [2.0 - 2.1 bar] (熱胎壓 Hot).
@@ -125,10 +126,10 @@ export const analyzeTrackImage = async (
       - 無懸吊，實心後軸.
       
       [建議調校範圍 Reference Ranges]：
-      - 車架硬度 (Chassis Stiffness): [前扭力桿: 軟/中/硬, 後軸: Medium/Hard (Type N/H)].
-      - 座椅支撐桿 (Seat Stays): [每側 1-2 支] (越多越硬，增加後輪抓地力).
-      - 後輪距 (Rear Track Width): [1380mm - 1400mm (Max)]. (寬=穩/抓地, 窄=滑/靈活).
-      - 前輪距 (Front Track): 透過墊片調整. (寬=轉向精準, 窄=反應慢).
+      - 車架硬度 (Chassis Stiffness): [前扭力桿: Soft/Medium/Stiff (可調), 後軸: Medium/Hard (Type N/H)].
+      - 座椅支撐桿 (Seat Stays): [每側 1-2 支] (越多越 Stiff (硬)，增加後輪抓地力).
+      - 後輪距 (Rear Track Width): [1380mm - 1400mm (Max)]. (寬=Stable (穩)/Grip, 窄=Loose (滑)/Agile).
+      - 前輪距 (Front Track): 透過墊片調整. (寬=Precise (精準), 窄=Slow Response (慢)).
       - 胎壓 (Tire Pressure): [0.6 - 1.0 bar] (極低，視氣溫而定).
       - 齒比 (Sprocket): [例如: 11/78 (加速) - 12/75 (尾速)]. 需依直道長度調整.
       
@@ -145,8 +146,8 @@ export const analyzeTrackImage = async (
       
       [建議調校範圍 Reference Ranges]：
       - 胎壓 (Tire Pressure): [冷: 28-30 psi -> 熱: 34-36 psi]. (避免超過 38psi).
-      - 懸吊硬度 (Spring Rate): [前: 40-80 N/mm, 後: 50-90 N/mm] (一般偏軟).
-      - 避震阻尼 (Damping): [壓縮: 中, 回彈: 慢] (控制車身側傾). 若為電子避震請切換至 Track/Corsa 模式.
+      - 懸吊硬度 (Spring Rate): [前: 40-80 N/mm (Soft), 後: 50-90 N/mm (Soft)] (一般偏軟).
+      - 避震阻尼 (Damping): [壓縮: Medium (中), 回彈: Slow/Stiff (慢/硬)] (控制車身側傾). 若為電子避震請切換至 Track/Corsa (Stiff) 模式.
       - 若為改裝避震 (Coilovers): 建議設定 [前: 10-12kg, 後: 8-10kg].
       - 來令片 (Pads): 建議升級高溫賽道片 (Endurance/Sprint).
       
@@ -243,7 +244,8 @@ export const analyzeTrackImage = async (
     4. 建議檔位 (根據車型調整，Formula E 與單速卡丁車顯示為 1 或直驅)。
     5. 整體車輛調校建議 (下壓力、懸吊軟硬、齒比、Formula E 需包含電量策略)。
        * [極重要] 你的調校建議必須具體參考上方的 [建議調校範圍 Reference Ranges]。
-       * 請給出具體的數值建議 (例如: "前翼角度建議 28-32 度", "胎壓建議 22 psi")，而不要只說 "調高" 或 "調低"。
+       * 請在 JSON 的 'detailedSetup' 陣列中，填入 4-6 項最關鍵的調校數值建議。
+       * 例如：Component="Front Wing", Value="28", Unit="deg", Trend="High".
     6. [極重要] 預估此車型在此賽道的三個計時區段 (Sector 1, Sector 2, Sector 3) 時間以及單圈總時間。
        * 必須基於物理現實：若辨識出是真實存在的賽道 (如 Suzuka, Spa, Silverstone)，**必須** 使用該賽道該車種的真實歷史最快單圈紀錄 (Lap Record) 或排位賽成績作為基準進行微調。
     
@@ -284,8 +286,27 @@ export const analyzeTrackImage = async (
         properties: {
           tireWear: { type: Type.STRING, description: "Tire wear analysis in Traditional Chinese" },
           overtakingOpportunities: { type: Type.STRING, description: "Overtaking advice in Traditional Chinese" },
-          setupSuggestion: { type: Type.STRING, description: "Specific car setup suggestion in Traditional Chinese with numerical ranges" }
-        }
+          setupSuggestion: { type: Type.STRING, description: "Text summary of setup suggestions" },
+          detailedSetup: {
+            type: Type.ARRAY,
+            description: "List of 4-6 specific setup parameters with values",
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                component: { type: Type.STRING, description: "Name of setting (e.g., Front Wing)" },
+                value: { type: Type.STRING, description: "Numerical value or range (e.g., 28-30)" },
+                unit: { type: Type.STRING, description: "Unit (e.g., deg, psi, N/mm)" },
+                trend: { 
+                  type: Type.STRING, 
+                  enum: ['Soft', 'Medium', 'Stiff', 'Low', 'High', 'Balanced'],
+                  description: "Qualitative description for visualization color coding" 
+                }
+              },
+              required: ["component", "value", "trend"]
+            }
+          }
+        },
+        required: ["tireWear", "overtakingOpportunities", "setupSuggestion", "detailedSetup"]
       },
       sectorStats: {
         type: Type.OBJECT,
