@@ -12,18 +12,18 @@ interface StrategyPanelProps {
 
 export const StrategyPanel: React.FC<StrategyPanelProps> = ({ strategy, overallCharacter, weather, vehicle }) => {
   
-  // Helper to determine color based on trend
+  // Helper to determine gradient color based on trend
   const getTrendColor = (trend: string) => {
     switch (trend) {
       case 'Stiff':
       case 'High':
-        return 'bg-f1-red shadow-[0_0_8px_rgba(255,24,1,0.5)]';
+        return 'bg-gradient-to-r from-orange-600 via-f1-red to-red-600 shadow-[0_0_12px_rgba(255,24,1,0.6)]';
       case 'Medium':
       case 'Balanced':
-        return 'bg-f1-teal shadow-[0_0_8px_rgba(0,210,190,0.5)]';
+        return 'bg-gradient-to-r from-teal-700 via-f1-teal to-cyan-400 shadow-[0_0_12px_rgba(0,210,190,0.6)]';
       case 'Soft':
       case 'Low':
-        return 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.5)]';
+        return 'bg-gradient-to-r from-yellow-600 via-yellow-500 to-amber-300 shadow-[0_0_12px_rgba(234,179,8,0.6)]';
       default:
         return 'bg-gray-500';
     }
@@ -32,11 +32,11 @@ export const StrategyPanel: React.FC<StrategyPanelProps> = ({ strategy, overallC
   const getTrendWidth = (trend: string) => {
     switch (trend) {
       case 'Stiff':
-      case 'High': return '90%';
+      case 'High': return '95%';
       case 'Medium':
-      case 'Balanced': return '50%';
+      case 'Balanced': return '50%'; // Perfectly centered
       case 'Soft':
-      case 'Low': return '20%';
+      case 'Low': return '25%';
       default: return '50%';
     }
   };
@@ -134,24 +134,33 @@ export const StrategyPanel: React.FC<StrategyPanelProps> = ({ strategy, overallC
                       {item.value} <span className="text-[9px] text-gray-500 ml-0.5">{item.unit}</span>
                     </span>
                   </div>
+                  
                   {/* Visual Bar Container */}
-                  <div className="h-1.5 w-full bg-gray-700/50 rounded-full overflow-hidden flex items-center relative">
-                    {/* Background tick marks */}
-                    <div className="absolute inset-0 flex justify-between px-1 opacity-20">
-                       <div className="w-[1px] h-full bg-white"></div>
-                       <div className="w-[1px] h-full bg-white"></div>
-                       <div className="w-[1px] h-full bg-white"></div>
+                  <div className="h-2 w-full bg-gray-800 rounded-full overflow-hidden flex items-center relative border border-white/5">
+                    {/* Baseline Marker (Center) */}
+                    <div className="absolute left-1/2 top-0 bottom-0 w-0.5 border-l border-dashed border-white/30 z-10 transform -translate-x-1/2 opacity-50"></div>
+                    
+                    {/* Background Grid Ticks */}
+                    <div className="absolute inset-0 flex justify-between px-0.5 z-0">
+                       <div className="w-[1px] h-full bg-white/5"></div>
+                       <div className="w-[1px] h-full bg-white/5"></div>
+                       <div className="w-[1px] h-full bg-white/5"></div>
+                       <div className="w-[1px] h-full bg-white/5"></div>
+                       <div className="w-[1px] h-full bg-white/5"></div>
                     </div>
+
                     {/* Active Bar */}
                     <div 
-                      className={`h-full rounded-full transition-all duration-1000 ${getTrendColor(item.trend)}`} 
+                      className={`h-full rounded-full transition-all duration-1000 relative z-0 ${getTrendColor(item.trend)}`} 
                       style={{ width: getTrendWidth(item.trend) }}
                     ></div>
                   </div>
-                  <div className="flex justify-between text-[8px] text-gray-600 mt-0.5 uppercase tracking-wide">
-                     <span>Soft / Low</span>
-                     <span>{item.trend}</span>
-                     <span>Stiff / High</span>
+                  
+                  {/* Scale Labels */}
+                  <div className="flex justify-between text-[8px] text-gray-600 mt-1 uppercase tracking-wide font-mono">
+                     <span className={item.trend === 'Soft' || item.trend === 'Low' ? 'text-yellow-500 font-bold' : ''}>Soft/Low</span>
+                     <span className={item.trend === 'Balanced' || item.trend === 'Medium' ? 'text-f1-teal font-bold' : ''}>Balanced</span>
+                     <span className={item.trend === 'Stiff' || item.trend === 'High' ? 'text-f1-red font-bold' : ''}>Stiff/High</span>
                   </div>
                 </div>
               ))}
