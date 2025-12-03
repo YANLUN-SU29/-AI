@@ -61,13 +61,17 @@ export const analyzeTrackImage = async (
       - 動力: ~1000hp, 車重: 798kg. 極速 >330km/h.
       - 過彎 G 值: 5.0G - 6.0G. 下壓力等級: 極高.
       - 煞車: 碳纖維盤, 需高溫工作.
+      - [新增] DRS 減阻系統 (DRS Drag Reduction): 開啟後尾翼主板平放，減少阻力並提升直線尾速 15-20 km/h.
+      - [新增] ERS 電能釋放 (ERS Energy Deployment): MGU-K 提供 160hp 輔助動力，需優化單圈能量部屬 (Deployment) 與回收 (Harvesting) 策略.
       
       [建議調校範圍 Reference Ranges]：
       - 前翼角度 (Front Wing): [Monza: 10°-18°] | [Spa/Suzuka: 28°-35°] | [Monaco: 45°-50°+].
       - 後翼 (Rear Wing): 對應前翼平衡.
       - 離地高 (Ride Height): [前: 4-6mm, 後: 5-7mm] (極低, 需考量彈跳 Porpoising).
       - 胎壓 (Tire Pressure): [前: 22.0-24.0 psi, 後: 20.0-22.0 psi] (熱胎壓).
-      - 懸吊 (Suspension): [前: >200 N/mm (極硬), 後: >180 N/mm].
+      - 懸吊硬度 (Spring Rate): [前: 200-250 N/mm, 後: 160-200 N/mm] (極硬以支撐空力負載).
+      - 避震阻尼 (Damping): [高速壓縮: 硬, 低速回彈: 中] (控制 Pitch/Heave).
+      - 防傾桿 (ARB): [前: 硬 (轉向反應), 後: 軟 (出彎牽引)].
       
       [物理特性]：極致氣動效率、碳纖維煞車(極短煞車距離)、DRS 減阻系統、ERS 電能釋放。
       [性能基準]：地球上最快賽車。若為知名賽道，必須精準參考真實 F1 紀錄。
@@ -79,10 +83,13 @@ export const analyzeTrackImage = async (
       [詳細性能規格]：
       - 動力: 350kW (470hp). 車重: ~850kg. 極速 ~320km/h.
       - 輪胎: Hankook iON 全天候胎 (低抓地力).
+      - [新增] 差速器: [無差速器鎖定調整 (No Differential Lock Adjustment)]. 為開放式差速器，依賴機械抓地力與動能回收平衡.
       
       [建議調校範圍 Reference Ranges]：
       - 離地高 (Ride Height): [60mm - 80mm] (適應街道顛簸).
       - 胎壓 (Tire Pressure): [1.3 - 1.6 bar] (較低以增加接地面積).
+      - 懸吊硬度 (Spring Rate): [前: 90-110 N/mm, 後: 80-100 N/mm] (較軟以適應街道顛簸).
+      - 避震阻尼 (Damping): [壓縮: 軟 (吸震), 回彈: 快 (保持輪胎接地)].
       - 動能回收 (Regen Level): [前端: 250kW, 後端: 350kW] (軟體設定).
       - 煞車平衡 (Bias): 偏後 (依賴馬達 Regen).
       
@@ -95,11 +102,13 @@ export const analyzeTrackImage = async (
       車輛設定：GT3 賽車 (e.g., Porsche 911 GT3 R, AMG GT3)。
       [詳細性能規格]：
       - 動力: ~520-560hp. 車重: ~1250kg. 極速 ~280km/h.
-      - 依賴 ABS (0-11段) 與 TC (0-11段).
+      - [新增] 電控系統: [依賴 ABS (0-11段) 與 TC (0-11段)]. 可在駕駛艙即時調整，針對輪胎磨損狀況改變介入程度.
       
       [建議調校範圍 Reference Ranges]：
       - 尾翼角度 (Rear Wing): [1° (Low Drag) - 12° (Max Downforce)].
       - 離地高 (Ride Height): [前: 55-65mm, 後: 65-80mm] (Rake 角度重要).
+      - 懸吊硬度 (Spring Rate): [前: 180-220 N/mm, 後: 190-230 N/mm] (視引擎配置).
+      - 避震阻尼 (Damping): [Bump: 5-8/10, Rebound: 4-7/10] (4-Way Adjustable).
       - ABS 設定: [乾地: 3-5, 濕地: 6-9].
       - TC 設定: [出彎: 2-4, 保胎: 5-7].
       - 胎壓 (Tire Pressure): [2.0 - 2.1 bar] (熱胎壓 Hot).
@@ -116,6 +125,8 @@ export const analyzeTrackImage = async (
       - 無懸吊，實心後軸.
       
       [建議調校範圍 Reference Ranges]：
+      - 車架硬度 (Chassis Stiffness): [前扭力桿: 軟/中/硬, 後軸: Medium/Hard (Type N/H)].
+      - 座椅支撐桿 (Seat Stays): [每側 1-2 支] (越多越硬，增加後輪抓地力).
       - 後輪距 (Rear Track Width): [1380mm - 1400mm (Max)]. (寬=穩/抓地, 窄=滑/靈活).
       - 前輪距 (Front Track): 透過墊片調整. (寬=轉向精準, 窄=反應慢).
       - 胎壓 (Tire Pressure): [0.6 - 1.0 bar] (極低，視氣溫而定).
@@ -134,7 +145,9 @@ export const analyzeTrackImage = async (
       
       [建議調校範圍 Reference Ranges]：
       - 胎壓 (Tire Pressure): [冷: 28-30 psi -> 熱: 34-36 psi]. (避免超過 38psi).
-      - 避震器 (Damping): [街道: 軟, 賽道: 硬]. 若為電子避震請切換至 Track/Corsa 模式.
+      - 懸吊硬度 (Spring Rate): [前: 40-80 N/mm, 後: 50-90 N/mm] (一般偏軟).
+      - 避震阻尼 (Damping): [壓縮: 中, 回彈: 慢] (控制車身側傾). 若為電子避震請切換至 Track/Corsa 模式.
+      - 若為改裝避震 (Coilovers): 建議設定 [前: 10-12kg, 後: 8-10kg].
       - 來令片 (Pads): 建議升級高溫賽道片 (Endurance/Sprint).
       
       [物理特性]：懸吊軟、側傾大、煞車與輪胎極易熱衰竭。
@@ -237,7 +250,9 @@ export const analyzeTrackImage = async (
     請嚴格遵守 JSON schema 回傳資料。
     注意：'brakingZone' 欄位必須保留英文 enum 值以便程式判讀：'Heavy', 'Medium', 'Light', 'Lift', 'Flat-out'。
     'difficulty' 使用 1 到 10 的數值。
-    'type' 欄位請描述彎道類型 (例如：髮夾彎、減速彎、高速彎)，不需要強制判斷左右。
+    
+    'type' 欄位請單純描述彎道幾何類型 (例如：髮夾彎、減速彎、高速彎、直角彎)。
+    *** 極度重要：禁止在 'type', 'name' 或 'advice' 中提及「左轉」、「右轉」、「Left」、「Right」等方向性詞彙。AI 不需要判斷轉向方向，只需分析彎道銳利度與通過技巧。 ***
   `;
 
   // Define the schema for structured JSON output
@@ -255,10 +270,10 @@ export const analyzeTrackImage = async (
           properties: {
             number: { type: Type.INTEGER },
             name: { type: Type.STRING, nullable: true, description: "Corner name in Chinese. If mapped from a marker, include official name in brackets." },
-            type: { type: Type.STRING, description: "Corner type description in Traditional Chinese (e.g., Hairpin, Chicane, Fast Sweeper)" },
+            type: { type: Type.STRING, description: "Corner type description (e.g., Hairpin, Chicane). STRICTLY NO Left/Right direction info." },
             brakingZone: { type: Type.STRING, enum: ['Heavy', 'Medium', 'Light', 'Lift', 'Flat-out'] },
             difficulty: { type: Type.INTEGER },
-            advice: { type: Type.STRING, description: `Racing line and technique advice in Traditional Chinese, specifically for ${vehicle} in ${weather} conditions` },
+            advice: { type: Type.STRING, description: `Racing line and technique advice in Traditional Chinese, specifically for ${vehicle} in ${weather} conditions. Do NOT mention turn direction (left/right).` },
             gear: { type: Type.INTEGER, description: "Estimated gear selection", nullable: true }
           },
           required: ["number", "type", "brakingZone", "advice", "difficulty"]
