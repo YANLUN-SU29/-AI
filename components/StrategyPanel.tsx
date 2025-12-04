@@ -1,5 +1,8 @@
 
 
+
+
+
 import React from 'react';
 import { TrackAnalysis, WeatherCondition, VehicleType } from '../types';
 
@@ -101,18 +104,34 @@ export const StrategyPanel: React.FC<StrategyPanelProps> = ({ strategy, overallC
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Tire Wear */}
-        <div className="bg-black/20 p-4 rounded-lg border border-white/5 flex flex-col h-full">
-          <div className="flex items-center gap-2 mb-2 text-f1-red">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span className="font-bold text-xs uppercase">輪胎磨損 (Tire Wear)</span>
+        {/* Column 1: Tire Wear & Key to Win (Stacked) */}
+        <div className="flex flex-col gap-4 h-full">
+          {/* Tire Wear */}
+          <div className="bg-black/20 p-4 rounded-lg border border-white/5 flex flex-col flex-1">
+            <div className="flex items-center gap-2 mb-2 text-f1-red">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="font-bold text-xs uppercase">輪胎磨損 (Tire Wear)</span>
+            </div>
+            <p className="text-sm text-gray-300">{strategy.tireWear}</p>
           </div>
-          <p className="text-sm text-gray-300">{strategy.tireWear}</p>
+
+          {/* Key to Win (New) */}
+          <div className="bg-gradient-to-br from-f1-teal/10 to-transparent p-4 rounded-lg border border-f1-teal/20 flex flex-col flex-1 shadow-[inset_0_0_20px_rgba(0,210,190,0.05)]">
+            <div className="flex items-center gap-2 mb-2 text-f1-teal">
+               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+               </svg>
+               <span className="font-bold text-xs uppercase">獲勝關鍵 (Key to Win)</span>
+            </div>
+            <p className="text-sm text-white font-medium leading-relaxed italic">
+               "{strategy.keyToWin || "分析中..."}"
+            </p>
+          </div>
         </div>
 
-        {/* Setup Suggestion - Enhanced Visuals */}
+        {/* Column 2: Setup Suggestion - Enhanced Visuals */}
         <div className="bg-black/20 p-4 rounded-lg border border-white/5 flex flex-col h-full col-span-1 md:col-span-1">
           <div className="flex items-center gap-2 mb-3 text-f1-teal">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -170,7 +189,7 @@ export const StrategyPanel: React.FC<StrategyPanelProps> = ({ strategy, overallC
           )}
         </div>
 
-        {/* Overtaking & Aerodynamics */}
+        {/* Column 3: Strategy Column: Overtaking, Aero, Pit Stop */}
         <div className="flex flex-col gap-4 col-span-1">
             {/* Overtaking */}
             <div className="bg-black/20 p-4 rounded-lg border border-white/5">
@@ -183,7 +202,7 @@ export const StrategyPanel: React.FC<StrategyPanelProps> = ({ strategy, overallC
                 <p className="text-sm text-gray-300">{strategy.overtakingOpportunities}</p>
             </div>
 
-            {/* Aerodynamics Strategy (New) */}
+            {/* Aerodynamics Strategy */}
             <div className="bg-black/20 p-4 rounded-lg border border-white/5 flex-1">
                 <div className="flex items-center gap-2 mb-2 text-blue-400">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -193,6 +212,19 @@ export const StrategyPanel: React.FC<StrategyPanelProps> = ({ strategy, overallC
                 </div>
                 <p className="text-sm text-gray-300 leading-relaxed">
                     {strategy.aeroStrategy || "分析中..."}
+                </p>
+            </div>
+
+            {/* Pit Stop Strategy (New) */}
+            <div className="bg-black/20 p-4 rounded-lg border border-white/5 flex-1">
+                <div className="flex items-center gap-2 mb-2 text-purple-400">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    <span className="font-bold text-xs uppercase">進站策略 (Pit Strategy)</span>
+                </div>
+                <p className="text-sm text-gray-300 leading-relaxed">
+                    {strategy.pitStrategy || "分析中..."}
                 </p>
             </div>
         </div>

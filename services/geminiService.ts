@@ -1,4 +1,5 @@
 
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { TrackAnalysis, WeatherCondition, VehicleType, MapMarker, VideoAnalysisMode } from '../types';
 
@@ -80,14 +81,19 @@ export const analyzeTrackImage = async (
       - 動力: ~1000hp, 車重: 798kg. 極速 >330km/h.
       - 過彎 G 值: 5.0G - 6.0G. 下壓力等級: 極高.
       - 煞車: 碳纖維盤, 需高溫工作.
-      - [新增] DRS 減阻系統 (DRS Drag Reduction): 開啟後尾翼主板平放，減少阻力並提升直線尾速 15-20 km/h. 有效區段單圈時間約減少 0.3s - 0.5s.
-      - [新增] ERS 電能釋放 (ERS Energy Deployment): MGU-K 提供 160hp 輔助動力 (4MJ/Lap 釋放上限)，需優化單圈能量部屬 (Deployment) 與回收 (Harvesting) 策略.
-      - [進階空力] 空力平衡 (Aero Balance): 這是 F1 調校的核心. 調整前翼角度 (Flap Angle) 以改變前軸負載佔比 (Front %). 增加角度 (More Wing) 可消除轉向不足 (Understeer) 但會導致車尾神經質 (Oversteer). 理想平衡需隨賽道特性調整.
+      - [新增] DRS 減阻系統: 開啟後尾翼主板平放，減少阻力並提升直線尾速 15-20 km/h. 有效區段單圈時間約減少 0.3s - 0.5s.
+      - [新增] ERS 電能釋放: MGU-K 提供 160hp 輔助動力 (4MJ/Lap 釋放上限)，需優化單圈能量部屬 (Deployment) 與回收 (Harvesting) 策略.
+      - [進階空力] 空力平衡 (Aero Balance): 調整前翼角度 (Flap Angle) 以改變前軸負載佔比 (Front %). 增加角度 (More Wing) 可消除轉向不足 (Understeer).
+      
+      [輪胎與煞車熱管理模型 Tire & Brake Thermal Model]:
+      - 輪胎磨損 (Degradation): 極高熱敏感度 (High Thermal Sensitivity). 軟胎 (Soft C5) 壽命短且有明顯懸崖 (Cliff). 預期衰退率: 每圈慢 0.05s - 0.15s (視賽道). 
+      - 工作溫度 (Operating Window): [前輪: 100°C - 110°C, 後輪: 90°C - 100°C]. 過熱會導致表面起泡 (Blistering).
+      - 煞車熱衰 (Brake Fade): 碳纖維盤需 >400°C 才能工作, 最佳區間 400°C - 1000°C. 幾乎無熱衰退 (Fade-free), 但氧化磨損是限制. 真正的風險是安全車期間煞車過冷導致無制動力 (Glazing).
       
       [建議調校範圍 Reference Ranges]：
       - 前翼角度 (Front Wing): [Monza: 10°-18°] | [Spa/Suzuka: 28°-35°] | [Monaco: 45°-50°+].
-      - 離地高 (Ride Height): [前: 4-6mm, 後: 5-7mm] (極低, 需考量彈跳 Porpoising).
-      - 胎壓 (Tire Pressure): [前: 22.0-24.0 psi, 後: 20.0-22.0 psi] (熱胎壓).
+      - 離地高 (Ride Height): [前: 4-6mm, 後: 5-7mm].
+      - 胎壓 (Tire Pressure): [前: 22.0-24.0 psi, 後: 20.0-22.0 psi].
       - 懸吊硬度 (Spring Rate): [前: 200-250 N/mm (Stiff), 後: 160-200 N/mm (Stiff)].
       - 避震阻尼 (Damping): [高速壓縮: Stiff (硬), 低速回彈: Medium (中)].
       
@@ -101,12 +107,17 @@ export const analyzeTrackImage = async (
       [詳細性能規格]：
       - 動力: 350kW (470hp). 車重: ~850kg. 極速 ~320km/h.
       - 輪胎: Hankook iON 全天候胎 (低抓地力).
-      - [新增] 差速器: [無差速器鎖定調整 (No Differential Lock Adjustment)]. 為機械式開放差速器或固定限滑，車手無法在駕駛艙調整.
-      - [進階空力] 低風阻設定 (Low Drag Efficiency): 由於電池能量密度限制，減少風阻係數 (Cd) 比增加下壓力更關鍵. 應盡量減少非必要翼片角度，主要依賴車底擴散器 (Diffuser) 產生高效下壓力.
+      - [新增] 差速器: [無差速器鎖定調整]. 固定限滑或開放式，車手無法在駕駛艙調整.
+      - [進階空力] 低風阻設定: 減少風阻係數 (Cd) 比增加下壓力更關鍵. 主要依賴車底擴散器 (Diffuser).
+      
+      [輪胎與煞車熱管理模型 Tire & Brake Thermal Model]:
+      - 輪胎磨損 (Degradation): 極低 (Low). 全天候胎質地硬，可承受整場比賽不換胎. 衰退率幾乎為 0，但過熱會變得滑溜 (Greasy).
+      - 工作溫度 (Operating Window): 寬廣但較低. 主要挑戰是排位賽單圈能否快速升溫 (Warm-up).
+      - 煞車熱衰 (Brake Fade): 物理煞車極小，極少全負載工作. 真正的 "Fade" 來自電池過熱導致動能回收 (Regen) 功率下降 (De-rating)，迫使車手依賴冷且弱的物理煞車，這非常危險.
       
       [建議調校範圍 Reference Ranges]：
-      - 離地高 (Ride Height): [60mm - 80mm] (適應街道顛簸).
-      - 胎壓 (Tire Pressure): [1.3 - 1.6 bar] (較低以增加接地面積).
+      - 離地高 (Ride Height): [60mm - 80mm].
+      - 胎壓 (Tire Pressure): [1.3 - 1.6 bar].
       - 懸吊硬度 (Spring Rate): [前: 90-110 N/mm (Soft), 後: 80-100 N/mm (Soft)].
       - 避震阻尼 (Damping): [壓縮: Soft (軟), 回彈: Fast (快)].
       
@@ -119,8 +130,13 @@ export const analyzeTrackImage = async (
       車輛設定：GT3 賽車 (e.g., Porsche 911 GT3 R, AMG GT3)。
       [詳細性能規格]：
       - 動力: ~520-560hp. 車重: ~1250kg. 極速 ~280km/h.
-      - [新增] 電控系統: [依賴 ABS (0-11段) 與 TC (0-11段)]. 設定範圍通常為 1-12，數值越低介入越少(或視車廠邏輯而定). 乾地 ABS 建議 3-5, TC 建議 2-4.
-      - [進階空力] Rake (車身俯仰角): 車高設定關鍵. 增加車尾高度 (Positive Rake) 可加速車底氣流，大幅提升擴散器效率，從而增加整體下壓力，但過高會導致氣流剝離 (Stall).
+      - [新增] 電控系統: [依賴 ABS (0-11段) 與 TC (0-11段)]. 設定範圍通常為 1-12.
+      - [進階空力] Rake (車身俯仰角): 增加車尾高度 (Positive Rake) 可加速車底氣流，大幅提升擴散器效率.
+      
+      [輪胎與煞車熱管理模型 Tire & Brake Thermal Model]:
+      - 輪胎磨損 (Degradation): 線性且可預測 (Linear). Slicks (Pirelli/Michelin) 設計用於耐久賽 (1小時 Stint). 衰退率: 每10圈慢 ~0.3s. 
+      - 工作溫度 (Operating Window): [80°C - 100°C]. 注意胎壓隨溫度的增長 (Cold to Hot delta ~4-6 psi).
+      - 煞車熱衰 (Brake Fade): 鋼製碟盤 (Steel Rotors). 熱容量有限，長時間高負載 (如 Monza T1) 會導致煞車油沸騰 (Fluid Boil) 或來令片效能下降 (Pad Fade). 需嚴格監控煞車導管 (Ducts) 開口.
       
       [建議調校範圍 Reference Ranges]：
       - 尾翼角度 (Rear Wing): [1° (Low Drag) - 12° (Max Downforce)].
@@ -129,7 +145,7 @@ export const analyzeTrackImage = async (
       - 避震阻尼 (Damping): [Bump: 5-8/10, Rebound: 4-7/10].
       - ABS 設定: [乾地: 3-5, 濕地: 6-9].
       - TC 設定: [出彎: 2-4, 保胎: 5-7].
-      - 胎壓 (Tire Pressure): [2.0 - 2.1 bar] (熱胎壓 Hot).
+      - 胎壓 (Tire Pressure): [2.0 - 2.1 bar] (熱胎壓).
       
       [物理特性]：車身較重，慣性大。依賴 ABS 與 TC (循跡系統)。
       [性能基準]：單圈比 F1 慢 20-30 秒。
@@ -141,7 +157,12 @@ export const analyzeTrackImage = async (
       [詳細性能規格]：
       - 動力: 30-45hp. 車重: ~150kg. 極速 100-140km/h.
       - 無懸吊，實心後軸.
-      - [進階空力] 人體空力 (Driver Aero): 卡丁車無空力套件，車手身體是最大阻力源. 直道必須縮頭駝背 (Tuck in) 以減少迎風面積，這能顯著提升尾速.
+      - [進階空力] 人體空力 (Driver Aero): 直道必須縮頭駝背 (Tuck in) 以減少迎風面積.
+      
+      [輪胎與煞車熱管理模型 Tire & Brake Thermal Model]:
+      - 輪胎磨損 (Degradation): 極度依賴路面條件. 若過度側滑 (Sliding)，胎面溫度瞬間過高會變得 "油膩 (Greasy)" 失去抓地力. 需控制滑動角 (Slip Angle).
+      - 工作溫度 (Operating Window): 敏感. 最佳胎壓 (Hot) 通常在 0.8 - 0.9 bar. 冷胎壓設定至關重要.
+      - 煞車熱衰 (Brake Fade): 單一後碟盤散熱差. 如果車手習慣 "拖煞車 (Dragging)"，煞車油會瞬間沸騰導致完全失去煞車. 必須用 "點煞" 方式散熱.
       
       [建議調校範圍 Reference Ranges]：
       - 車架硬度: [前扭力桿: Soft/Medium, 後軸: Medium/Hard].
@@ -159,7 +180,12 @@ export const analyzeTrackImage = async (
       [詳細性能規格]：
       - 動力: 400-700hp. 車重: >1400kg.
       - 街胎 (Street Tires).
-      - [進階空力] 升力抑制 (Lift Reduction): 一般街車外型會產生升力 (Lift). 空力套件目標並非產生巨大下壓力，而是減少升力以提升高速行駛時的輪胎貼地性與穩定性.
+      - [進階空力] 升力抑制 (Lift Reduction): 目標是減少升力以提升高速穩定性.
+      
+      [輪胎與煞車熱管理模型 Tire & Brake Thermal Model]:
+      - 輪胎磨損 (Degradation): 災難性 (High). 街胎無法承受連續賽道負荷. 3-5 圈全力衝刺後，胎塊剝落 (Chunking) 或過熱融化，抓地力呈斷崖式下降.
+      - 工作溫度 (Operating Window): 很低 (<80°C). 必須做冷卻圈 (Cool-down laps).
+      - 煞車熱衰 (Brake Fade): 主要瓶頸. 煞車油沸騰 (Vapor Lock) 導致踏板變軟 (Spongy)，來令片摩擦係數隨溫度驟降. 必須嚴格管理煞車點，不可延遲煞車.
       
       [建議調校範圍 Reference Ranges]：
       - 胎壓 (Tire Pressure): [冷: 28-30 psi -> 熱: 34-36 psi].
@@ -241,7 +267,9 @@ export const analyzeTrackImage = async (
     4. 建議檔位。
     5. 車輛調校建議 (參考 [建議調校範圍])。
     6. [空力調校策略]: 請針對空氣動力學設定 (翼片角度、空力平衡、阻力管理) 提供獨立的詳細分析與建議。
-    7. 預估區段時間與單圈時間 (必須基於物理現實或真實紀錄)。
+    7. [進站策略]: 請根據賽道特性與輪胎磨損模型，建議進站窗口 (例如: Lap 18-24)、停站次數 (1-Stop/2-Stop) 與輪胎配方順序 (Soft -> Hard).
+    8. [獲勝關鍵]: 請總結一條精簡有力的 "獲勝關鍵 (Key to Win)"，例如 "排位賽順位至關重要" 或 "管理後輪熱衰竭是決勝點"。
+    9. 預估區段時間與單圈時間 (必須基於物理現實或真實紀錄)。
     
     *** 禁止在 'type', 'name' 或 'advice' 中使用「左/右 (Left/Right)」方向詞彙 ***
     
@@ -286,7 +314,9 @@ export const analyzeTrackImage = async (
         type: Type.OBJECT,
         properties: {
           tireWear: { type: Type.STRING },
+          keyToWin: { type: Type.STRING, description: "A concise winning strategy summary" },
           aeroStrategy: { type: Type.STRING, description: "Dedicated aerodynamic setup advice" },
+          pitStrategy: { type: Type.STRING, description: "Pit stop strategy advice (1-stop/2-stop, compounds, window)" },
           overtakingOpportunities: { type: Type.STRING },
           setupSuggestion: { type: Type.STRING },
           detailedSetup: {
@@ -303,7 +333,7 @@ export const analyzeTrackImage = async (
             }
           }
         },
-        required: ["tireWear", "aeroStrategy", "overtakingOpportunities", "setupSuggestion", "detailedSetup"]
+        required: ["tireWear", "keyToWin", "aeroStrategy", "pitStrategy", "overtakingOpportunities", "setupSuggestion", "detailedSetup"]
       },
       sectorStats: {
         type: Type.OBJECT,

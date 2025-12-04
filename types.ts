@@ -57,7 +57,9 @@ export interface TrackAnalysis {
   corners: CornerAnalysis[];
   strategy: {
     tireWear: string;
-    aeroStrategy: string; // New detailed aero advice
+    keyToWin: string; // New: Winning strategy summary
+    aeroStrategy: string; // Dedicated aero advice
+    pitStrategy: string; // New: Pit stop strategy advice
     overtakingOpportunities: string;
     setupSuggestion: string; // General mechanical/suspension summary
     detailedSetup?: SetupItem[]; // Structured visual data
