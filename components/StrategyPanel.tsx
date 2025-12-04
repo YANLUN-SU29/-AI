@@ -107,7 +107,7 @@ export const StrategyPanel: React.FC<StrategyPanelProps> = ({ strategy, overallC
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span className="font-bold text-xs uppercase">輪胎磨損</span>
+            <span className="font-bold text-xs uppercase">輪胎磨損 (Tire Wear)</span>
           </div>
           <p className="text-sm text-gray-300">{strategy.tireWear}</p>
         </div>
@@ -170,15 +170,31 @@ export const StrategyPanel: React.FC<StrategyPanelProps> = ({ strategy, overallC
           )}
         </div>
 
-        {/* Overtaking */}
-        <div className="bg-black/20 p-4 rounded-lg border border-white/5 flex flex-col h-full">
-          <div className="flex items-center gap-2 mb-2 text-yellow-500">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span className="font-bold text-xs uppercase">超車熱點</span>
-          </div>
-          <p className="text-sm text-gray-300">{strategy.overtakingOpportunities}</p>
+        {/* Overtaking & Aerodynamics */}
+        <div className="flex flex-col gap-4 col-span-1">
+            {/* Overtaking */}
+            <div className="bg-black/20 p-4 rounded-lg border border-white/5">
+                <div className="flex items-center gap-2 mb-2 text-yellow-500">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="font-bold text-xs uppercase">超車熱點 (Overtaking)</span>
+                </div>
+                <p className="text-sm text-gray-300">{strategy.overtakingOpportunities}</p>
+            </div>
+
+            {/* Aerodynamics Strategy (New) */}
+            <div className="bg-black/20 p-4 rounded-lg border border-white/5 flex-1">
+                <div className="flex items-center gap-2 mb-2 text-blue-400">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5" />
+                    </svg>
+                    <span className="font-bold text-xs uppercase">空力調校策略 (Aerodynamics)</span>
+                </div>
+                <p className="text-sm text-gray-300 leading-relaxed">
+                    {strategy.aeroStrategy || "分析中..."}
+                </p>
+            </div>
         </div>
       </div>
     </div>

@@ -147,10 +147,10 @@ export const TrackMap: React.FC<TrackMapProps> = ({
   }, [draggingId, isSettingStart, startConfig, setMarkers, setStartConfig]);
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3 h-full">
       {/* Toolbar */}
       {!readOnly && (
-        <div className="flex items-center justify-between bg-black/40 border border-white/10 p-2 rounded-lg">
+        <div className="flex items-center justify-between bg-black/40 border border-white/10 p-2 rounded-lg shrink-0">
            <div className="flex gap-2">
              <button
                onClick={() => setToolMode('marker')}
@@ -184,10 +184,10 @@ export const TrackMap: React.FC<TrackMapProps> = ({
         </div>
       )}
 
-      <div className="relative group select-none">
+      <div className="relative group select-none flex-1">
         <div 
           ref={containerRef}
-          className={`relative border-2 border-dashed rounded-xl overflow-hidden transition-all duration-300 min-h-[300px] flex flex-col items-center justify-center bg-black border-f1-teal/50 
+          className={`relative border-2 border-dashed rounded-xl overflow-hidden transition-all duration-300 w-full h-[75vh] min-h-[600px] flex flex-col items-center justify-center bg-black border-f1-teal/50 
             ${!readOnly ? (toolMode === 'marker' ? 'cursor-crosshair' : 'cursor-default') : ''}`}
           onClick={handleContainerClick}
           onMouseDown={handleContainerMouseDown}
@@ -225,7 +225,7 @@ export const TrackMap: React.FC<TrackMapProps> = ({
                }}
             >
                {/* Green Arrow Icon */}
-               <svg width="40" height="40" viewBox="0 0 40 40" fill="none" className="drop-shadow-lg filter">
+               <svg width="60" height="60" viewBox="0 0 40 40" fill="none" className="drop-shadow-lg filter">
                  <path d="M20 0L35 25H25V40H15V25H5L20 0Z" fill="#00D2BE" stroke="white" strokeWidth="2"/>
                </svg>
             </div>
@@ -239,7 +239,7 @@ export const TrackMap: React.FC<TrackMapProps> = ({
               style={{ left: `${marker.x}%`, top: `${marker.y}%` }}
             >
               <div 
-                className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border-2 shadow-lg transition-transform 
+                className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 shadow-lg transition-transform 
                   ${draggingId === marker.id ? 'bg-f1-red text-white scale-110 cursor-grabbing border-white' : 'bg-f1-red text-white border-white cursor-grab hover:scale-110'}
                   ${toolMode === 'start' ? 'opacity-50' : 'opacity-100'}
                 `}

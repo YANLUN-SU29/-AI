@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { CornerAnalysis } from '../types';
 
@@ -93,6 +92,23 @@ export const CornerCard: React.FC<CornerCardProps> = ({ corner }) => {
       {/* Background Gradient Hint */}
       <div className={`absolute top-0 right-0 w-48 h-48 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-bl-full pointer-events-none`} />
 
+      {/* Abstract Racing Line SVG Visualization - Dashed White Line */}
+      {corner.racingLineSVG && (
+        <div className="absolute inset-0 z-0 opacity-10 group-hover:opacity-25 transition-opacity duration-500 pointer-events-none">
+          <svg viewBox="0 0 100 100" className="w-full h-full" preserveAspectRatio="xMidYMid meet">
+            {/* The Dashed White Racing Line */}
+            <path 
+              d={corner.racingLineSVG} 
+              fill="none" 
+              stroke="white" 
+              strokeWidth="2" 
+              strokeLinecap="round" 
+              strokeDasharray="6, 6"
+            />
+          </svg>
+        </div>
+      )}
+
       <div className="flex justify-between items-start mb-4 relative z-10">
         <div className="flex items-center gap-4">
           {/* Number Circle */}
@@ -114,11 +130,11 @@ export const CornerCard: React.FC<CornerCardProps> = ({ corner }) => {
         </div>
       </div>
       
-      <p className="text-sm text-gray-300 mb-5 leading-relaxed border-l-2 border-white/10 pl-4 py-1">
+      <p className="text-sm text-gray-300 mb-5 leading-relaxed border-l-2 border-white/10 pl-4 py-1 relative z-10">
         {corner.advice}
       </p>
 
-      <div className="flex items-center justify-between mt-auto pt-4 border-t border-white/5 bg-black/10 -mx-5 -mb-5 px-5 py-3">
+      <div className="flex items-center justify-between mt-auto pt-4 border-t border-white/5 bg-black/10 -mx-5 -mb-5 px-5 py-3 relative z-10">
          {/* Gear Indicator */}
          <div className="flex items-center gap-3">
             {corner.gear ? (

@@ -31,6 +31,7 @@ export interface CornerAnalysis {
   difficulty: number; // 1-10
   advice: string;
   gear?: number;
+  racingLineSVG?: string; // Abstract SVG path d attribute for visualization
 }
 
 export interface SetupItem {
@@ -56,8 +57,9 @@ export interface TrackAnalysis {
   corners: CornerAnalysis[];
   strategy: {
     tireWear: string;
+    aeroStrategy: string; // New detailed aero advice
     overtakingOpportunities: string;
-    setupSuggestion: string; // Summary text
+    setupSuggestion: string; // General mechanical/suspension summary
     detailedSetup?: SetupItem[]; // Structured visual data
   };
   sectorStats?: SectorStats;

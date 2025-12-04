@@ -34,6 +34,9 @@ function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
+  // Determine if we are in "Marking Mode" (File uploaded but not analyzed yet)
+  const isMarkingMode = uploadState.previewUrl && !analysis;
+
   const loadingSteps = [
     { id: 0, title: "掃描賽道幾何/影像", subtitle: "Scanning Geometry & Footage" },
     { id: 1, title: "物理模型運算", subtitle: "Calculating Physics & Grip" },
@@ -52,25 +55,42 @@ function App() {
     return () => clearInterval(interval);
   }, [status]);
 
+  // Helper to validate file type more robustly
+  const validateFile = (file: File): { valid: boolean; type: 'image' | 'video' | null; error?: string } => {
+    const isVideoMime = file.type.startsWith('video/');
+    const isImageMime = file.type.startsWith('image/');
+    
+    // Check extensions because sometimes MIME types are missing or generic
+    const isVideoExt = /\.(mp4|mov|webm|avi|mkv|m4v)$/i.test(file.name);
+    const isImageExt = /\.(jpg|jpeg|png|webp|gif|bmp)$/i.test(file.name);
+
+    if (isVideoMime || isVideoExt) {
+       // Size check: 60MB limit for browser stability
+       if (file.size > 60 * 1024 * 1024) {
+         return { valid: false, type: 'video', error: '影片檔案過大 (>60MB)。請上傳較短的片段以確保分析順暢。' };
+       }
+       return { valid: true, type: 'video' };
+    }
+
+    if (isImageMime || isImageExt) {
+      return { valid: true, type: 'image' };
+    }
+
+    return { valid: false, type: null, error: '不支援的檔案格式。請上傳 JPG, PNG 圖片或 MP4, MOV 影片。' };
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const isVideo = file.type.startsWith('video/');
-      const isImage = file.type.startsWith('image/');
-
-      if (!isVideo && !isImage) {
-        setError('請上傳有效的影像或影片檔案 (JPG, PNG, MP4, MOV)。');
+      const validation = validateFile(file);
+      
+      if (!validation.valid) {
+        setError(validation.error || '檔案無效');
         return;
       }
 
-      // Basic size check for video to prevent browser crash on base64 conversion
-      if (isVideo && file.size > 50 * 1024 * 1024) {
-         setError('影片檔案過大，建議上傳 50MB 以下的短片以確保分析順暢。');
-         return;
-      }
-
       const previewUrl = URL.createObjectURL(file);
-      setUploadState({ file, previewUrl, mediaType: isVideo ? 'video' : 'image' });
+      setUploadState({ file, previewUrl, mediaType: validation.type! });
       setMarkers([]); // Reset markers
       setStartConfig(null); // Reset start line
       setVideoMode('FullLap'); // Reset video mode
@@ -277,18 +297,18 @@ function App() {
     e.stopPropagation();
     const file = e.dataTransfer.files?.[0];
     if (file) {
-      const isVideo = file.type.startsWith('video/');
-      const isImage = file.type.startsWith('image/');
-      
-      if (isVideo || isImage) {
+      const validation = validateFile(file);
+      if (validation.valid) {
         const previewUrl = URL.createObjectURL(file);
-        setUploadState({ file, previewUrl, mediaType: isVideo ? 'video' : 'image' });
+        setUploadState({ file, previewUrl, mediaType: validation.type! });
         setMarkers([]);
         setStartConfig(null);
         setVideoMode('FullLap');
         setStatus(AnalysisStatus.IDLE);
         setAnalysis(null);
         setError(null);
+      } else {
+        setError(validation.error || '不支援的檔案。');
       }
     }
   };
@@ -313,11 +333,23 @@ function App() {
              </p>
           </div>
         )}
+        
+        {/* Global Error Message (Upload related) */}
+        {status !== AnalysisStatus.ERROR && error && (
+          <div className="max-w-4xl mx-auto mb-6 bg-red-900/20 border border-f1-red/50 text-red-200 p-4 rounded-lg text-sm flex items-center gap-3 animate-fade-in">
+              <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              {error}
+              <button onClick={() => setError(null)} className="ml-auto hover:text-white">✕</button>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
-          {/* Left Column: Upload & Visualization */}
-          <div className="lg:col-span-5 flex flex-col gap-6">
+          {/* Top Section: Visualization & Controls - Always Wide */}
+          {/* Main container keeps full width regardless of analysis state */}
+          <div className="lg:col-span-10 lg:col-start-2 flex flex-col gap-6 transition-all duration-500">
             
             {uploadState.previewUrl ? (
               <div className="flex flex-col gap-3">
@@ -348,14 +380,21 @@ function App() {
                     </div>
 
                     {/* Feature Disabled Notification (Bottom Overlay) */}
-                    <div className="absolute bottom-4 left-4 right-4 bg-black/80 backdrop-blur-md border border-white/10 p-3 rounded-lg flex items-start gap-3 z-20">
-                        <svg className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <div>
-                            <p className="text-xs text-yellow-500 font-bold uppercase mb-0.5">限制功能 (Limited Features)</p>
-                            <p className="text-[10px] text-gray-400">
-                                影片模式下不支援 <span className="text-white">手動標記</span> 與 <span className="text-white">起跑線設定</span>。AI 將自動識別畫面中的關鍵彎道。
+                    <div className="absolute bottom-4 left-4 right-4 bg-f1-dark/95 backdrop-blur-md border-l-4 border-f1-teal p-4 rounded-r-lg shadow-xl z-20 flex items-start gap-4">
+                        <div className="p-2 bg-f1-teal/10 rounded-full shrink-0">
+                           <svg className="w-6 h-6 text-f1-teal" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                           </svg>
+                        </div>
+                        <div className="flex-1">
+                            <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-1 flex items-center gap-2">
+                                AI 自動影像分析模式 <span className="text-[10px] bg-f1-teal text-black px-2 py-0.5 rounded font-mono">ACTIVE</span>
+                            </h4>
+                            <p className="text-xs text-gray-300 leading-relaxed">
+                                系統將自動掃描影片影格以識別賽道特徵與行車動態。
+                                <span className="block mt-1 text-gray-500 font-medium">
+                                  * 此模式下已停用「手動標記」與「起跑線」工具，AI 將全權接管分析。
+                                </span>
                             </p>
                         </div>
                     </div>
@@ -384,13 +423,13 @@ function App() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                   <p className="text-sm text-gray-300 font-medium">拖放 圖片 或 影片 到此處</p>
-                  <p className="text-xs text-gray-500 mt-1 mb-4">或 點擊上傳 (JPG, PNG, MP4)</p>
+                  <p className="text-xs text-gray-500 mt-1 mb-4">支援 .JPG, .PNG, .MP4, .MOV, .MKV</p>
                 </div>
                 <input 
                   type="file" 
                   ref={fileInputRef} 
                   className="hidden" 
-                  accept="image/*,video/*"
+                  accept="image/*,video/*,.mkv,.mov"
                   onChange={handleFileSelect} 
                 />
               </div>
@@ -433,6 +472,11 @@ function App() {
                              : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'
                          }`}
                        >
+                         {videoMode === 'FullLap' && (
+                           <svg className="w-3 h-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                           </svg>
+                         )}
                          完整單圈
                          <span className="text-[9px] opacity-70 font-mono">FULL LAP</span>
                        </button>
@@ -445,6 +489,11 @@ function App() {
                              : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'
                          }`}
                        >
+                         {videoMode === 'KeyCorners' && (
+                           <svg className="w-3 h-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                           </svg>
+                         )}
                          關鍵彎道
                          <span className="text-[9px] opacity-70 font-mono">KEY CORNERS</span>
                        </button>
@@ -457,6 +506,11 @@ function App() {
                              : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'
                          }`}
                        >
+                         {videoMode === 'SpecificSection' && (
+                           <svg className="w-3 h-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                           </svg>
+                         )}
                          特定區段
                          <span className="text-[9px] opacity-70 font-mono">SECTION</span>
                        </button>
@@ -498,70 +552,102 @@ function App() {
             )}
 
             {status === AnalysisStatus.ANALYZING && (
-              <div className="bg-f1-carbon/90 border border-f1-teal/30 rounded-xl p-6 md:p-8 flex flex-col md:flex-row items-center justify-center gap-8 md:gap-12 relative overflow-hidden min-h-[400px] backdrop-blur-md">
-                {/* Background Grid Animation */}
-                <div className="absolute inset-0 opacity-10 pointer-events-none bg-[linear-gradient(rgba(0,210,190,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(0,210,190,0.1)_1px,transparent_1px)] bg-[size:20px_20px]"></div>
+              <div className="bg-f1-dark/95 border border-f1-teal/30 rounded-xl p-8 flex flex-col items-center justify-center relative overflow-hidden min-h-[450px] backdrop-blur-xl shadow-[0_0_50px_rgba(0,210,190,0.1)]">
                 
-                {/* Left: Visual Radar */}
-                <div className="relative w-32 h-32 md:w-40 md:h-40 flex-shrink-0 flex items-center justify-center">
-                  {/* Outer Rings */}
-                  <div className="absolute inset-0 border border-f1-teal/20 rounded-full"></div>
-                  <div className="absolute inset-4 border border-f1-teal/10 rounded-full border-dashed animate-[spin_10s_linear_infinite]"></div>
-                  
-                  {/* Rotating Radar */}
-                  <div className="absolute inset-0 rounded-full border-t-2 border-r-2 border-f1-teal/50 animate-[spin_2s_linear_infinite] shadow-[0_0_15px_rgba(0,210,190,0.3)]"></div>
-                  
-                  {/* Inner Pulse */}
-                  <div className="absolute inset-12 bg-f1-teal/10 rounded-full animate-ping"></div>
-                  
-                  {/* Center Icon */}
-                  <div className="relative z-10 w-16 h-16 bg-black rounded-full border border-f1-teal/50 flex items-center justify-center shadow-[0_0_20px_rgba(0,210,190,0.2)]">
-                     <svg className="w-8 h-8 text-f1-teal" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                     </svg>
+                {/* 1. Matrix/Data Background Effect */}
+                <div className="absolute inset-0 opacity-20 pointer-events-none overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-full bg-[linear-gradient(to_bottom,transparent,rgba(0,210,190,0.2),transparent)] translate-y-[-100%] animate-[scan_3s_linear_infinite]"></div>
+                  <div className="grid grid-cols-12 gap-2 h-full w-full opacity-30">
+                      {Array.from({ length: 48 }).map((_, i) => (
+                          <div key={i} className="text-[8px] font-mono text-f1-teal animate-pulse" style={{ animationDelay: `${Math.random() * 2}s` }}>
+                              {Math.random() > 0.5 ? '10110' : '01001'}
+                          </div>
+                      ))}
                   </div>
                 </div>
 
-                {/* Right: Progress Timeline */}
-                <div className="z-10 flex flex-col gap-5 max-w-sm w-full">
-                  <h3 className="text-lg font-display font-bold text-white tracking-widest uppercase mb-1 border-b border-white/10 pb-2">
-                    System Initialization
-                  </h3>
-                  
-                  <div className="space-y-3">
+                {/* 2. Central Animation: Rotating Pirelli Tire (Red/Soft) */}
+                <div className="relative mb-12 transform scale-125">
+                   {/* Tire Container - WHOLE WHEEL SPINS SLOWLY (3s) */}
+                   <div className="relative w-48 h-48 animate-[spin_3s_linear_infinite]">
+                      <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-2xl">
+                          {/* 2.1 Tire Carcass (Black) */}
+                          <circle cx="50" cy="50" r="48" fill="#151515" stroke="#050505" strokeWidth="2" />
+                          
+                          {/* 2.2 Red Stripe (Soft Compound) */}
+                          <circle cx="50" cy="50" r="38" fill="none" stroke="#FF1801" strokeWidth="2.5" opacity="0.95" />
+                          
+                          {/* 2.3 Sidewall Text Path */}
+                          <defs>
+                              <path id="textCircle" d="M 50, 50 m -33, 0 a 33,33 0 1,1 66,0 a 33,33 0 1,1 -66,0" />
+                          </defs>
+                          <text fill="#FF1801" fontSize="8" fontWeight="900" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
+                              {/* Top Text - P ZERO (Centered at 25% of path) */}
+                              <textPath href="#textCircle" startOffset="25%" textAnchor="middle" alignmentBaseline="middle" letterSpacing="1.5">P ZERO</textPath>
+                              {/* Bottom Text - PIRELLI (Centered at 75% of path) */}
+                              <textPath href="#textCircle" startOffset="75%" textAnchor="middle" alignmentBaseline="middle" letterSpacing="1">PIRELLI</textPath>
+                          </text>
+                          
+                          {/* 2.4 The Rim (Dark Magnesium) */}
+                          <circle cx="50" cy="50" r="22" fill="#1a1a1a" stroke="#222" strokeWidth="1" />
+                          
+                          {/* 2.5 Spokes (SVG Lines) - perfectly centered */}
+                          <g stroke="#2a2a2a" strokeWidth="2.5" strokeLinecap="round">
+                              {[0, 36, 72, 108, 144, 180, 216, 252, 288, 324].map(deg => {
+                                  const rad = (deg * Math.PI) / 180;
+                                  // Start near center, end at rim edge
+                                  const x2 = 50 + 20 * Math.cos(rad);
+                                  const y2 = 50 + 20 * Math.sin(rad);
+                                  return <line key={deg} x1="50" y1="50" x2={x2} y2={y2} />
+                              })}
+                          </g>
+
+                          {/* 2.6 Center Lock Nut (Blue for Left side/General) */}
+                          <circle cx="50" cy="50" r="5" fill="#1d4ed8" stroke="#3b82f6" strokeWidth="1" />
+                          <circle cx="50" cy="50" r="2" fill="#000" opacity="0.5" /> {/* Center hole */}
+
+                          {/* 2.7 Metallic Reflection (Rotates with wheel) */}
+                          <path d="M 50 28 A 22 22 0 0 1 72 50" fill="none" stroke="white" strokeWidth="1.5" opacity="0.15" strokeLinecap="round" />
+                      </svg>
+                   </div>
+                   
+                   {/* Heat Haze Effect (Static relative to container) */}
+                   <div className="absolute -inset-4 rounded-full border border-f1-red/20 animate-ping opacity-30 pointer-events-none"></div>
+                </div>
+
+                {/* 3. Steps Timeline */}
+                <div className="w-full max-w-md space-y-4 relative z-10">
                     {loadingSteps.map((step, index) => {
                       const isActive = index === loadingStep;
                       const isCompleted = index < loadingStep;
                       
                       return (
-                        <div key={step.id} className={`flex items-center gap-3 transition-all duration-500 ${isActive ? 'translate-x-2' : 'opacity-40'}`}>
-                          {/* Status Indicator */}
-                          <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 transition-colors duration-300 ${
-                            isActive ? 'bg-f1-teal shadow-[0_0_10px_#00D2BE] animate-pulse' : 
-                            isCompleted ? 'bg-f1-teal' : 'bg-gray-700'
-                          }`}></div>
-                          
-                          {/* Text */}
-                          <div className="flex flex-col">
-                            <span className={`text-sm font-bold font-display uppercase tracking-wider transition-colors ${
-                              isActive ? 'text-white' : isCompleted ? 'text-gray-300' : 'text-gray-500'
-                            }`}>
-                              {step.title}
-                            </span>
-                            <span className="text-[10px] font-mono text-gray-400">
-                              {isActive ? 'Processing...' : isCompleted ? 'Completed' : step.subtitle}
-                            </span>
-                          </div>
+                        <div key={step.id} className={`flex items-center gap-4 transition-all duration-500 ${isActive ? 'scale-105 opacity-100' : 'opacity-50'}`}>
+                           <div className={`w-8 h-8 rounded-full flex items-center justify-center border transition-all ${
+                               isActive ? 'border-f1-teal bg-f1-teal/20 text-f1-teal shadow-[0_0_10px_#00D2BE]' : 
+                               isCompleted ? 'border-f1-teal bg-f1-teal text-black' : 'border-gray-700 bg-gray-900 text-gray-600'
+                           }`}>
+                               {isCompleted ? (
+                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                  </svg>
+                               ) : (
+                                  <span className="text-xs font-mono">{index + 1}</span>
+                               )}
+                           </div>
+                           <div className="flex flex-col">
+                              <span className={`text-sm font-bold uppercase tracking-wider ${isActive ? 'text-white' : 'text-gray-400'}`}>
+                                  {step.title}
+                              </span>
+                              {isActive && (
+                                  <span className="text-[10px] text-f1-teal font-mono animate-pulse">
+                                      {step.subtitle}...
+                                  </span>
+                              )}
+                           </div>
                         </div>
-                      );
+                      )
                     })}
-                  </div>
-
-                  {/* Telemetry Footer */}
-                  <div className="mt-2 pt-3 border-t border-white/10 flex justify-between text-[10px] font-mono text-f1-teal/60">
-                     <span>TARGET: {vehicle}</span>
-                     <span className="animate-pulse">_CONNECTING_TO_GEMINI_Core</span>
-                  </div>
                 </div>
               </div>
             )}
@@ -576,101 +662,83 @@ function App() {
             )}
           </div>
 
-          {/* Right Column: Analysis Results */}
-          <div className="lg:col-span-7">
-            {analysis ? (
-              <div className="space-y-6 animate-fade-in" ref={resultsRef}>
-                {/* Header Info */}
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-white/10 pb-6 gap-4">
-                  <div>
-                    <h2 className="text-3xl font-display font-bold text-white uppercase">{analysis.circuitName}</h2>
-                    <p className="text-f1-teal text-sm font-mono flex items-center gap-2">
-                       <span className="w-2 h-2 rounded-full bg-f1-teal animate-pulse"></span>
-                       {analysis.locationGuess || "未知地點"}
-                    </p>
-                  </div>
-                  <div className="flex flex-col sm:flex-row gap-4 items-end sm:items-center">
-                    <div className="flex gap-4">
-                        <div className="text-right">
-                        <span className="block text-[10px] text-gray-500 uppercase tracking-wider">彎道數</span>
-                        <span className="font-display text-2xl font-bold">{analysis.totalCorners}</span>
-                        </div>
-                        <div className="w-[1px] bg-white/10 h-10"></div>
-                        <div className="text-right">
-                        <span className="block text-[10px] text-gray-500 uppercase tracking-wider">車輛</span>
-                        <span className="font-display text-2xl font-bold text-gray-300">{vehicle}</span>
-                        </div>
-                    </div>
-                    {/* Export PDF Button */}
-                    <button
-                        onClick={handleExportPDF}
-                        disabled={isExporting}
-                        className={`flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-all text-xs font-bold text-gray-300 hover:text-white ${isExporting ? 'opacity-50 cursor-wait' : ''}`}
-                    >
-                        {isExporting ? (
-                            <>
-                                <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                匯出中...
-                            </>
-                        ) : (
-                            <>
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                </svg>
-                                匯出 PDF 報告
-                            </>
-                        )}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Telemetry Panel (Sector Times) */}
-                <TelemetryPanel stats={analysis.sectorStats} />
-
-                {/* Strategy Panel */}
-                <StrategyPanel 
-                  strategy={analysis.strategy} 
-                  overallCharacter={analysis.overallCharacter} 
-                  weather={weather}
-                  vehicle={analysis.vehicle}
-                />
-
-                {/* Corners Grid */}
+          {/* Bottom Section: Analysis Results - Below, Centered & Wide */}
+          {analysis && (
+            <div className="lg:col-span-10 lg:col-start-2 space-y-6 animate-fade-in" ref={resultsRef}>
+              {/* Header Info */}
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-white/10 pb-6 gap-4">
                 <div>
-                   <h3 className="text-xl font-display font-bold text-white mb-4 border-l-4 border-f1-red pl-3">
-                     彎道詳細分析 (Corner Analysis)
-                   </h3>
-                   {markers.length > 0 && uploadState.mediaType === 'image' && (
-                     <p className="text-sm text-gray-400 mb-4 bg-white/5 p-2 rounded">
-                       * 顯示順序對應圖上標記 (1 - {markers.length})
-                     </p>
-                   )}
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     {analysis.corners.map((corner) => (
-                       <CornerCard key={corner.number} corner={corner} />
-                     ))}
-                   </div>
+                  <h2 className="text-3xl font-display font-bold text-white uppercase">{analysis.circuitName}</h2>
+                  <p className="text-f1-teal text-sm font-mono flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-f1-teal animate-pulse"></span>
+                      {analysis.locationGuess || "未知地點"}
+                  </p>
                 </div>
+                <div className="flex flex-col sm:flex-row gap-4 items-end sm:items-center">
+                  <div className="flex gap-4">
+                      <div className="text-right">
+                      <span className="block text-[10px] text-gray-500 uppercase tracking-wider">彎道數</span>
+                      <span className="font-display text-2xl font-bold">{analysis.totalCorners}</span>
+                      </div>
+                      <div className="w-[1px] bg-white/10 h-10"></div>
+                      <div className="text-right">
+                      <span className="block text-[10px] text-gray-500 uppercase tracking-wider">車輛</span>
+                      <span className="font-display text-2xl font-bold text-gray-300">{vehicle}</span>
+                      </div>
+                  </div>
+                  {/* Export PDF Button */}
+                  <button
+                      onClick={handleExportPDF}
+                      disabled={isExporting}
+                      className={`flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-all text-xs font-bold text-gray-300 hover:text-white ${isExporting ? 'opacity-50 cursor-wait' : ''}`}
+                  >
+                      {isExporting ? (
+                          <>
+                              <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                              匯出中...
+                          </>
+                      ) : (
+                          <>
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                              </svg>
+                              匯出 PDF 報告
+                          </>
+                      )}
+                  </button>
+                </div>
+              </div>
 
-              </div>
-            ) : (
-              // Placeholder State
-              <div className="h-full flex flex-col items-center justify-center text-gray-600 border-2 border-dashed border-white/5 rounded-xl min-h-[400px]">
-                {status === AnalysisStatus.IDLE && (
-                   <>
-                    <svg className="w-16 h-16 mb-4 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <p className="uppercase tracking-widest text-xs font-bold opacity-50">
-                      {(markers.length > 0 || startConfig) && uploadState.mediaType === 'image' 
-                        ? "已準備好標記，點擊「開始分析」..." 
-                        : uploadState.previewUrl ? "準備分析媒體素材..." : "等待遙測數據..."}
+              {/* Telemetry Panel (Sector Times) */}
+              <TelemetryPanel stats={analysis.sectorStats} />
+
+              {/* Strategy Panel */}
+              <StrategyPanel 
+                strategy={analysis.strategy} 
+                overallCharacter={analysis.overallCharacter} 
+                weather={weather}
+                vehicle={analysis.vehicle}
+              />
+
+              {/* Corners Grid */}
+              <div>
+                  <h3 className="text-xl font-display font-bold text-white mb-4 border-l-4 border-f1-red pl-3">
+                    彎道詳細分析 (Corner Analysis)
+                  </h3>
+                  {markers.length > 0 && uploadState.mediaType === 'image' && (
+                    <p className="text-sm text-gray-400 mb-4 bg-white/5 p-2 rounded">
+                      * 顯示順序對應圖上標記 (1 - {markers.length})
                     </p>
-                   </>
-                )}
+                  )}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {analysis.corners.map((corner) => (
+                      <CornerCard key={corner.number} corner={corner} />
+                    ))}
+                  </div>
               </div>
-            )}
-          </div>
+
+            </div>
+          )}
         </div>
       </main>
     </div>
