@@ -41,10 +41,15 @@ export interface SetupItem {
   trend: 'Soft' | 'Medium' | 'Stiff' | 'Low' | 'High' | 'Balanced'; // For visual color coding
 }
 
+export interface SectorDetail {
+  time: string;       // e.g., "32.5s"
+  description: string; // e.g., "High speed straight into tight chicane"
+}
+
 export interface SectorStats {
-  sector1: string;
-  sector2: string;
-  sector3: string;
+  sector1: SectorDetail;
+  sector2: SectorDetail;
+  sector3: SectorDetail;
   estimatedLapTime: string;
 }
 

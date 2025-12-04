@@ -1,5 +1,3 @@
-
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { TrackAnalysis, WeatherCondition, VehicleType, MapMarker, VideoAnalysisMode } from '../types';
 
@@ -269,7 +267,7 @@ export const analyzeTrackImage = async (
     6. [空力調校策略]: 請針對空氣動力學設定 (翼片角度、空力平衡、阻力管理) 提供獨立的詳細分析與建議。
     7. [進站策略]: 請根據賽道特性與輪胎磨損模型，建議進站窗口 (例如: Lap 18-24)、停站次數 (1-Stop/2-Stop) 與輪胎配方順序 (Soft -> Hard).
     8. [獲勝關鍵]: 請總結一條精簡有力的 "獲勝關鍵 (Key to Win)"，例如 "排位賽順位至關重要" 或 "管理後輪熱衰竭是決勝點"。
-    9. 預估區段時間與單圈時間 (必須基於物理現實或真實紀錄)。
+    9. 預估區段時間與單圈時間 (必須基於物理現實或真實紀錄)。區段數據需包含「時間數值」與「特性描述」。
     
     *** 禁止在 'type', 'name' 或 'advice' 中使用「左/右 (Left/Right)」方向詞彙 ***
     
@@ -338,9 +336,30 @@ export const analyzeTrackImage = async (
       sectorStats: {
         type: Type.OBJECT,
         properties: {
-          sector1: { type: Type.STRING },
-          sector2: { type: Type.STRING },
-          sector3: { type: Type.STRING },
+          sector1: { 
+            type: Type.OBJECT,
+            properties: {
+              time: { type: Type.STRING, description: "Estimated Time e.g., '32.1s'" },
+              description: { type: Type.STRING, description: "Brief characteristics description" }
+            },
+            required: ["time", "description"]
+          },
+          sector2: { 
+            type: Type.OBJECT,
+            properties: {
+              time: { type: Type.STRING, description: "Estimated Time e.g., '45.2s'" },
+              description: { type: Type.STRING, description: "Brief characteristics description" }
+            },
+            required: ["time", "description"]
+          },
+          sector3: { 
+            type: Type.OBJECT,
+            properties: {
+              time: { type: Type.STRING, description: "Estimated Time e.g., '28.4s'" },
+              description: { type: Type.STRING, description: "Brief characteristics description" }
+            },
+            required: ["time", "description"]
+          },
           estimatedLapTime: { type: Type.STRING }
         },
         required: ["sector1", "sector2", "sector3", "estimatedLapTime"]
