@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { CornerAnalysis } from '../types';
 
@@ -53,36 +54,57 @@ export const CornerCard: React.FC<CornerCardProps> = ({ corner }) => {
     }
   };
 
-  // Intensity Bars Visualization
-  const renderIntensityBars = (zone: string) => {
-    let level = 0;
-    let colorClass = '';
+  // Visual Telemetry Indicator (Heat Bar)
+  const renderTelemetryBar = (zone: string) => {
+    let percentage = 0;
+    let gradient = '';
+    let label = 'BRAKE PRESS.';
     
     switch (zone) {
-      case 'Heavy': level = 5; colorClass = 'bg-f1-red'; break;
-      case 'Medium': level = 3; colorClass = 'bg-orange-500'; break;
-      case 'Light': level = 2; colorClass = 'bg-yellow-500'; break;
-      case 'Lift': level = 1; colorClass = 'bg-blue-500'; break;
-      case 'Flat-out': level = 5; colorClass = 'bg-f1-teal'; break; // Special style for flat out?
-    }
-    
-    // Flat-out gets a special full solid bar look or all green
-    if (zone === 'Flat-out') {
-       return (
-         <div className="flex gap-0.5 mt-1.5 h-1.5 w-full max-w-[80px]">
-           <div className="w-full h-full rounded-sm bg-f1-teal shadow-[0_0_5px_#00D2BE]"></div>
-         </div>
-       )
+      case 'Heavy': 
+        percentage = 95; 
+        gradient = 'bg-gradient-to-r from-red-900 via-f1-red to-red-400 shadow-[0_0_8px_rgba(255,24,1,0.6)]'; 
+        break;
+      case 'Medium': 
+        percentage = 60; 
+        gradient = 'bg-gradient-to-r from-orange-900 via-orange-500 to-orange-300 shadow-[0_0_8px_rgba(249,115,22,0.6)]'; 
+        break;
+      case 'Light': 
+        percentage = 30; 
+        gradient = 'bg-gradient-to-r from-yellow-900 via-yellow-500 to-yellow-200 shadow-[0_0_8px_rgba(234,179,8,0.6)]'; 
+        break;
+      case 'Lift': 
+        percentage = 10; 
+        gradient = 'bg-gradient-to-r from-blue-900 via-blue-500 to-blue-300 shadow-[0_0_8px_rgba(59,130,246,0.6)]'; 
+        label = 'COASTING';
+        break;
+      case 'Flat-out': 
+        percentage = 100; 
+        gradient = 'bg-gradient-to-r from-teal-900 via-f1-teal to-cyan-300 shadow-[0_0_8px_rgba(0,210,190,0.6)]'; 
+        label = 'THROTTLE';
+        break;
     }
 
     return (
-      <div className="flex gap-1 mt-1.5 justify-end">
-        {[1, 2, 3, 4, 5].map((i) => (
-          <div 
-            key={i} 
-            className={`w-2 h-1.5 rounded-sm transition-all ${i <= level ? colorClass : 'bg-gray-800'}`} 
-          />
-        ))}
+      <div className="w-24 mt-2">
+         <div className="flex justify-between items-end mb-1">
+            <span className="text-[9px] text-gray-500 font-mono tracking-tighter">{label}</span>
+            <span className="text-[9px] font-mono font-bold text-gray-300">{percentage}%</span>
+         </div>
+         <div className="h-1.5 w-full bg-gray-800 rounded-full overflow-hidden border border-white/10 relative">
+             {/* Background Grid */}
+             <div className="absolute inset-0 flex justify-between px-[1px] opacity-20 z-0">
+                <div className="w-[1px] h-full bg-white"></div>
+                <div className="w-[1px] h-full bg-white"></div>
+                <div className="w-[1px] h-full bg-white"></div>
+                <div className="w-[1px] h-full bg-white"></div>
+             </div>
+             {/* Active Bar */}
+             <div 
+               className={`h-full rounded-full transition-all duration-1000 relative z-10 ${gradient}`} 
+               style={{ width: `${percentage}%` }}
+             ></div>
+         </div>
       </div>
     );
   }
@@ -122,11 +144,11 @@ export const CornerCard: React.FC<CornerCardProps> = ({ corner }) => {
         </div>
 
         <div className="flex flex-col items-end">
-           <span className={`text-[10px] uppercase font-bold px-3 py-1 rounded-full tracking-wide mb-1 ${getBrakingColor(corner.brakingZone)}`}>
+           <span className={`text-[10px] uppercase font-bold px-3 py-1 rounded-full tracking-wide mb-0.5 ${getBrakingColor(corner.brakingZone)}`}>
             {getBrakingText(corner.brakingZone)}
           </span>
           {/* Visual Intensity Meter */}
-          {renderIntensityBars(corner.brakingZone)}
+          {renderTelemetryBar(corner.brakingZone)}
         </div>
       </div>
       

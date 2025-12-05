@@ -265,7 +265,10 @@ export const analyzeTrackImage = async (
     4. 建議檔位。
     5. 車輛調校建議 (參考 [建議調校範圍])。
     6. [空力調校策略]: 請針對空氣動力學設定 (翼片角度、空力平衡、阻力管理) 提供獨立的詳細分析與建議。
-    7. [進站策略]: 請根據賽道特性與輪胎磨損模型，建議進站窗口 (例如: Lap 18-24)、停站次數 (1-Stop/2-Stop) 與輪胎配方順序 (Soft -> Hard).
+    7. [進站策略 (Pit Strategy)]: 基於 [輪胎與煞車熱管理模型] 與賽道特性(磨耗/進站損失時間)，提供詳細策略：
+       - 首選策略 (Primary): 停站次數、輪胎配方順序 (e.g., C4 Soft -> C3 Med)、進站窗口 (Lap x-y).
+       - 替代策略 (Alternative): 若輪胎衰退嚴重或遇上 SC 的備案.
+       - 關鍵提示: Undercut 效應強弱或輪胎暖胎 (Warm-up) 難度.
     8. [獲勝關鍵]: 請總結一條精簡有力的 "獲勝關鍵 (Key to Win)"，例如 "排位賽順位至關重要" 或 "管理後輪熱衰竭是決勝點"。
     9. 預估區段時間與單圈時間 (必須基於物理現實或真實紀錄)。區段數據需包含「時間數值」與「特性描述」。
     
@@ -314,7 +317,7 @@ export const analyzeTrackImage = async (
           tireWear: { type: Type.STRING },
           keyToWin: { type: Type.STRING, description: "A concise winning strategy summary" },
           aeroStrategy: { type: Type.STRING, description: "Dedicated aerodynamic setup advice" },
-          pitStrategy: { type: Type.STRING, description: "Pit stop strategy advice (1-stop/2-stop, compounds, window)" },
+          pitStrategy: { type: Type.STRING, description: "Detailed pit stop strategy (Windows, Compounds, Stops)" },
           overtakingOpportunities: { type: Type.STRING },
           setupSuggestion: { type: Type.STRING },
           detailedSetup: {
