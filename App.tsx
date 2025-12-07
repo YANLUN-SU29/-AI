@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef, useEffect } from 'react';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -407,7 +408,7 @@ function App() {
                     startConfig={startConfig}
                     setStartConfig={setStartConfig}
                     onClearImage={handleClearImage}
-                    readOnly={false}
+                    readOnly={analysis !== null} // Switch to ReadOnly when analyzed
                   />
                 )}
               </div>

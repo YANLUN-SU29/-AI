@@ -1,4 +1,5 @@
 
+
 import React, { MouseEvent, useState, useRef, useEffect } from 'react';
 import { MapMarker, StartConfig } from '../types';
 
@@ -21,7 +22,7 @@ export const TrackMap: React.FC<TrackMapProps> = ({
   startConfig, 
   setStartConfig, 
   readOnly = false, 
-  onClearImage 
+  onClearImage
 }) => {
   const [toolMode, setToolMode] = useState<ToolMode>('marker');
   const [draggingId, setDraggingId] = useState<number | null>(null);
@@ -146,6 +147,7 @@ export const TrackMap: React.FC<TrackMapProps> = ({
     };
   }, [draggingId, isSettingStart, startConfig, setMarkers, setStartConfig]);
 
+
   return (
     <div className="flex flex-col gap-3 h-full">
       {/* Toolbar */}
@@ -183,7 +185,7 @@ export const TrackMap: React.FC<TrackMapProps> = ({
            </div>
         </div>
       )}
-
+      
       <div className="relative group select-none flex-1">
         <div 
           ref={containerRef}
@@ -213,7 +215,7 @@ export const TrackMap: React.FC<TrackMapProps> = ({
             alt="Track Preview" 
             className="w-full h-full object-contain pointer-events-none p-4"
           />
-          
+
           {/* Start Line Marker */}
           {startConfig && (
             <div 

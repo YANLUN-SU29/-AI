@@ -1,9 +1,5 @@
 
-
-
-
-
-import React from 'react';
+import React, { useState } from 'react';
 import { TrackAnalysis, WeatherCondition, VehicleType } from '../types';
 
 interface StrategyPanelProps {
@@ -15,6 +11,11 @@ interface StrategyPanelProps {
 
 export const StrategyPanel: React.FC<StrategyPanelProps> = ({ strategy, overallCharacter, weather, vehicle }) => {
   
+  // Aero Sim State
+  const [showAeroSim, setShowAeroSim] = useState(false);
+  const [frontWing, setFrontWing] = useState(28); // Default degrees
+  const [rearWing, setRearWing] = useState(32);   // Default degrees
+
   // Helper to determine gradient color based on trend
   const getTrendColor = (trend: string) => {
     switch (trend) {
@@ -43,6 +44,84 @@ export const StrategyPanel: React.FC<StrategyPanelProps> = ({ strategy, overallC
       default: return '50%';
     }
   };
+
+  // Helper for Formula E Regen parsing
+  const getRegenPercentage = (text?: string): number => {
+      if (!text) return 40; // Default fallback for FE
+      const match = text.match(/(\d+)%/);
+      return match ? parseInt(match[1]) : 40;
+  };
+
+  // Helper to estimate Tire Wear Level from text description
+  const getTireWearLevel = (text: string) => {
+    if (!text) return 'Medium';
+    const lower = text.toLowerCase();
+    // Prioritize high/severe detection
+    if (lower.match(/(high|severe|critical|extreme|heavy|abusive|高|嚴重|劇烈|大)/)) return 'High';
+    if (lower.match(/(low|light|minimal|little|good|kind|低|輕微|小)/)) return 'Low';
+    return 'Medium';
+  };
+
+  // Aero Simulation Logic
+  const calculateAeroStats = () => {
+      const totalWing = frontWing + rearWing;
+      // Heuristic calculations
+      // Downforce increases with angle
+      const downforce = Math.min(100, Math.round((totalWing / 100) * 100)); 
+      // Drag increases faster with angle
+      const drag = Math.min(100, Math.round((totalWing / 100) * 110)); 
+      // Top Speed decreases as drag increases (Base ~340kph - drag factor)
+      const topSpeed = Math.round(345 - (drag * 0.6));
+      
+      // Balance Logic
+      const diff = frontWing - rearWing;
+      let balance = "Balanced (Neutral)";
+      let balanceColor = "text-f1-teal";
+      
+      if (diff > 4) {
+          balance = "Oversteer (Pointy)";
+          balanceColor = "text-orange-500";
+      } else if (diff < -4) {
+          balance = "Understeer (Stable)";
+          balanceColor = "text-blue-400";
+      }
+
+      return { downforce, drag, topSpeed, balance, balanceColor };
+  };
+
+  const aeroStats = calculateAeroStats();
+
+  const renderTireWearVisual = (text: string) => {
+    const level = getTireWearLevel(text);
+    let activeIndex = 1; 
+    if (level === 'Low') activeIndex = 0;
+    if (level === 'High') activeIndex = 2;
+
+    return (
+      <div className="mt-auto pt-3 w-full border-t border-white/5">
+         <div className="flex justify-between text-[10px] text-gray-400 font-mono mb-1 uppercase">
+            <span>Degradation Level</span>
+            <span className={`font-bold ${
+                level === 'High' ? 'text-f1-red' : 
+                level === 'Low' ? 'text-f1-teal' : 'text-yellow-500'
+            }`}>{level}</span>
+         </div>
+         <div className="flex gap-1 h-2">
+            {/* Low Segment */}
+            <div className={`flex-1 rounded-sm transition-colors duration-500 ${activeIndex >= 0 ? 'bg-f1-teal shadow-[0_0_5px_rgba(0,210,190,0.5)]' : 'bg-gray-800'}`}></div>
+            {/* Medium Segment */}
+            <div className={`flex-1 rounded-sm transition-colors duration-500 ${activeIndex >= 1 ? 'bg-yellow-500 shadow-[0_0_5px_rgba(234,179,8,0.5)]' : 'bg-gray-800'}`}></div>
+            {/* High Segment */}
+            <div className={`flex-1 rounded-sm transition-colors duration-500 ${activeIndex >= 2 ? 'bg-f1-red shadow-[0_0_5px_rgba(255,24,1,0.5)]' : 'bg-gray-800'}`}></div>
+         </div>
+         <div className="flex justify-between text-[9px] font-mono text-gray-600 uppercase tracking-wider mt-1">
+             <span className={activeIndex >= 0 ? 'text-gray-400' : ''}>Light</span>
+             <span className={activeIndex >= 1 ? 'text-gray-400' : ''}>Med</span>
+             <span className={activeIndex >= 2 ? 'text-gray-400' : ''}>High</span>
+         </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-gradient-to-br from-f1-carbon to-gray-900 rounded-xl border border-white/10 p-6 relative overflow-hidden">
@@ -115,6 +194,7 @@ export const StrategyPanel: React.FC<StrategyPanelProps> = ({ strategy, overallC
               <span className="font-bold text-xs uppercase">輪胎磨損 (Tire Wear)</span>
             </div>
             <p className="text-sm text-gray-300">{strategy.tireWear}</p>
+            {renderTireWearVisual(strategy.tireWear)}
           </div>
 
           {/* Key to Win (New) */}
@@ -189,7 +269,7 @@ export const StrategyPanel: React.FC<StrategyPanelProps> = ({ strategy, overallC
           )}
         </div>
 
-        {/* Column 3: Strategy Column: Overtaking, Aero, Pit Stop */}
+        {/* Column 3: Strategy Column: Overtaking, Aero, Pit/Regen */}
         <div className="flex flex-col gap-4 col-span-1">
             {/* Overtaking */}
             <div className="bg-black/20 p-4 rounded-lg border border-white/5">
@@ -202,31 +282,146 @@ export const StrategyPanel: React.FC<StrategyPanelProps> = ({ strategy, overallC
                 <p className="text-sm text-gray-300">{strategy.overtakingOpportunities}</p>
             </div>
 
-            {/* Aerodynamics Strategy */}
-            <div className="bg-black/20 p-4 rounded-lg border border-white/5 flex-1">
-                <div className="flex items-center gap-2 mb-2 text-blue-400">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5" />
-                    </svg>
-                    <span className="font-bold text-xs uppercase">空力調校策略 (Aerodynamics)</span>
+            {/* Aerodynamics Strategy with Interactive Sim */}
+            <div className="bg-black/20 p-4 rounded-lg border border-white/5 flex-1 flex flex-col transition-all duration-300">
+                <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2 text-blue-400">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5" />
+                        </svg>
+                        <span className="font-bold text-xs uppercase">空力調校策略 (Aerodynamics)</span>
+                    </div>
+                    {/* Toggle Sim Button */}
+                    <button 
+                        onClick={() => setShowAeroSim(!showAeroSim)}
+                        className={`text-[9px] px-2 py-0.5 rounded border transition-colors ${showAeroSim ? 'bg-blue-500 text-white border-blue-500' : 'text-gray-500 border-gray-700 hover:border-blue-400 hover:text-blue-400'}`}
+                    >
+                        {showAeroSim ? '收起模擬' : '開啟模擬器'}
+                    </button>
                 </div>
-                <p className="text-sm text-gray-300 leading-relaxed">
-                    {strategy.aeroStrategy || "分析中..."}
-                </p>
+
+                {!showAeroSim ? (
+                   <p className="text-sm text-gray-300 leading-relaxed">
+                       {strategy.aeroStrategy || "分析中..."}
+                   </p>
+                ) : (
+                   <div className="mt-2 animate-fade-in space-y-4">
+                       {/* Sliders */}
+                       <div className="space-y-3 p-3 bg-black/30 rounded border border-white/5">
+                           <div className="space-y-1">
+                               <div className="flex justify-between text-[10px] text-gray-400">
+                                   <span>Front Wing Angle</span>
+                                   <span className="text-white font-mono">{frontWing}°</span>
+                               </div>
+                               <input 
+                                  type="range" min="15" max="50" value={frontWing} 
+                                  onChange={(e) => setFrontWing(parseInt(e.target.value))}
+                                  className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                               />
+                           </div>
+                           <div className="space-y-1">
+                               <div className="flex justify-between text-[10px] text-gray-400">
+                                   <span>Rear Wing Angle</span>
+                                   <span className="text-white font-mono">{rearWing}°</span>
+                               </div>
+                               <input 
+                                  type="range" min="10" max="45" value={rearWing} 
+                                  onChange={(e) => setRearWing(parseInt(e.target.value))}
+                                  className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                               />
+                           </div>
+                       </div>
+
+                       {/* Output Graphs */}
+                       <div className="space-y-2">
+                            {/* Downforce */}
+                            <div className="flex items-center gap-2">
+                                <span className="text-[9px] text-gray-500 w-16 text-right uppercase">Downforce</span>
+                                <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                                    <div 
+                                      className="h-full bg-f1-teal transition-all duration-300"
+                                      style={{ width: `${aeroStats.downforce}%` }}
+                                    ></div>
+                                </div>
+                            </div>
+                            {/* Drag */}
+                            <div className="flex items-center gap-2">
+                                <span className="text-[9px] text-gray-500 w-16 text-right uppercase">Drag</span>
+                                <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                                    <div 
+                                      className="h-full bg-f1-red transition-all duration-300"
+                                      style={{ width: `${aeroStats.drag}%` }}
+                                    ></div>
+                                </div>
+                            </div>
+                            {/* Stats */}
+                            <div className="flex justify-between items-center pt-2 border-t border-white/5 mt-2">
+                                <div className="flex flex-col">
+                                    <span className="text-[9px] text-gray-500 uppercase">Est. Top Speed</span>
+                                    <span className="text-sm font-mono text-white font-bold">{aeroStats.topSpeed} km/h</span>
+                                </div>
+                                <div className="flex flex-col items-end">
+                                    <span className="text-[9px] text-gray-500 uppercase">Balance</span>
+                                    <span className={`text-[10px] font-bold ${aeroStats.balanceColor}`}>{aeroStats.balance}</span>
+                                </div>
+                            </div>
+                       </div>
+                   </div>
+                )}
             </div>
 
-            {/* Pit Stop Strategy (New) */}
-            <div className="bg-black/20 p-4 rounded-lg border border-white/5 flex-1">
-                <div className="flex items-center gap-2 mb-2 text-purple-400">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    <span className="font-bold text-xs uppercase">進站策略 (Pit Strategy)</span>
+            {/* CONDITIONAL: Regen (FE) OR Pit Stop (Others) */}
+            {vehicle === 'FormulaE' ? (
+                <div className="bg-gradient-to-br from-black/40 to-blue-900/10 p-4 rounded-lg border border-f1-teal/30 flex-1 relative overflow-hidden group">
+                   <div className="absolute inset-0 bg-f1-teal/5 animate-pulse pointer-events-none"></div>
+                   
+                   <div className="flex items-center gap-2 mb-2 text-f1-teal">
+                        <svg className="w-4 h-4 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        <span className="font-bold text-xs uppercase tracking-wider">電能回收效率 (Regen)</span>
+                   </div>
+                   
+                   <p className="text-sm text-gray-300 leading-relaxed mb-3 relative z-10">
+                        {strategy.regenOps || strategy.pitStrategy}
+                   </p>
+
+                   {/* Visual Battery Bar */}
+                   <div className="relative pt-2 z-10">
+                        <div className="flex justify-between text-[10px] text-gray-400 font-mono mb-1">
+                            <span>REGEN PER LAP</span>
+                            <span className="text-f1-teal font-bold">{getRegenPercentage(strategy.regenOps)}%</span>
+                        </div>
+                        <div className="h-4 bg-gray-900 rounded border border-gray-700 overflow-hidden relative">
+                             {/* Battery Segments */}
+                             <div className="absolute inset-0 flex">
+                                  {Array.from({length: 10}).map((_, i) => (
+                                     <div key={i} className="flex-1 border-r border-black/50 last:border-0"></div>
+                                  ))}
+                             </div>
+                             {/* Fill */}
+                             <div 
+                                className="h-full bg-gradient-to-r from-teal-800 to-f1-teal shadow-[0_0_10px_rgba(0,210,190,0.5)] transition-all duration-1000"
+                                style={{ width: `${getRegenPercentage(strategy.regenOps)}%` }}
+                             >
+                                 <div className="w-full h-full bg-[url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAIklEQVQIW2NkQAKrVq36zwjjgzhhYWGMYAEYB8RmROaABADeOQ8CXl/xfgAAAABJRU5ErkJggg==')] opacity-20"></div>
+                             </div>
+                        </div>
+                   </div>
                 </div>
-                <p className="text-sm text-gray-300 leading-relaxed">
-                    {strategy.pitStrategy || "分析中..."}
-                </p>
-            </div>
+            ) : (
+                <div className="bg-black/20 p-4 rounded-lg border border-white/5 flex-1">
+                    <div className="flex items-center gap-2 mb-2 text-purple-400">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        <span className="font-bold text-xs uppercase">進站策略 (Pit Strategy)</span>
+                    </div>
+                    <p className="text-sm text-gray-300 leading-relaxed">
+                        {strategy.pitStrategy || "分析中..."}
+                    </p>
+                </div>
+            )}
         </div>
       </div>
     </div>

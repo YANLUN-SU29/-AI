@@ -65,6 +65,7 @@ export interface TrackAnalysis {
     keyToWin: string; // New: Winning strategy summary
     aeroStrategy: string; // Dedicated aero advice
     pitStrategy: string; // New: Pit stop strategy advice
+    regenOps?: string; // New: Formula E Regen Efficiency estimate
     overtakingOpportunities: string;
     setupSuggestion: string; // General mechanical/suspension summary
     detailedSetup?: SetupItem[]; // Structured visual data

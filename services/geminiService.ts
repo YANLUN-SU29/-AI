@@ -269,6 +269,7 @@ export const analyzeTrackImage = async (
        - 首選策略 (Primary): 停站次數、輪胎配方順序 (e.g., C4 Soft -> C3 Med)、進站窗口 (Lap x-y).
        - 替代策略 (Alternative): 若輪胎衰退嚴重或遇上 SC 的備案.
        - 關鍵提示: Undercut 效應強弱或輪胎暖胎 (Warm-up) 難度.
+       - [Formula E 特別指令]: 若車輛為 Formula E，請忽略輪胎更換策略 (因 Gen3 無進站換胎)，改為提供「攻擊模式 (Attack Mode) 啟動時機」與「能量管理策略」。並務必填寫 'regenOps' 欄位，預估單圈動能回收佔比 (e.g. "35% - 40%")。
     8. [獲勝關鍵]: 請總結一條精簡有力的 "獲勝關鍵 (Key to Win)"，例如 "排位賽順位至關重要" 或 "管理後輪熱衰竭是決勝點"。
     9. 預估區段時間與單圈時間 (必須基於物理現實或真實紀錄)。區段數據需包含「時間數值」與「特性描述」。
     
@@ -277,14 +278,6 @@ export const analyzeTrackImage = async (
     嚴格遵守 JSON schema。
     注意：'detailedSetup' 需包含 Trend (Soft/Stiff等)。
     'type' 欄位描述幾何類型 (例如：髮夾彎)。
-    
-    [新增] 'racingLineSVG':
-    對於每個彎道，請生成一個簡單的 SVG path 'd' 字串 (基於 100x100 的畫布)。
-    這個路徑應該描繪出該彎道的「理想賽車路線 (Geometric Line)」。
-    - 假設入口在底部 (50, 100) 或左下。
-    - 描繪出彎道的形狀與 Apex。
-    - 範例: "M 50 100 Q 50 50 90 50" (代表一個向右的 90 度彎).
-    - 這將用於前端視覺化，請盡量讓線條圓滑 (使用 Q 或 C 指令)。
   `;
 
   const responseSchema = {
@@ -318,6 +311,7 @@ export const analyzeTrackImage = async (
           keyToWin: { type: Type.STRING, description: "A concise winning strategy summary" },
           aeroStrategy: { type: Type.STRING, description: "Dedicated aerodynamic setup advice" },
           pitStrategy: { type: Type.STRING, description: "Detailed pit stop strategy (Windows, Compounds, Stops)" },
+          regenOps: { type: Type.STRING, description: "Formula E Only: Estimated energy regeneration percentage per lap (e.g. '40%')." },
           overtakingOpportunities: { type: Type.STRING },
           setupSuggestion: { type: Type.STRING },
           detailedSetup: {
