@@ -1,5 +1,4 @@
 
-
 import React, { useState, useRef, useEffect } from 'react';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -11,7 +10,6 @@ import { VehicleSelector } from './components/VehicleSelector';
 import { TrackMap } from './components/TrackMap';
 import { TelemetryPanel } from './components/TelemetryPanel';
 import { TrackInfoInput } from './components/TrackInfoInput';
-// import { TrackSimulation } from './components/TrackSimulation'; // Removed as per request
 import { TutorialModal } from './components/TutorialModal';
 import { analyzeTrackImage } from './services/geminiService';
 import { AnalysisStatus, TrackAnalysis, UploadState, WeatherCondition, MapMarker, VehicleType, StartConfig, VideoAnalysisMode } from './types';
